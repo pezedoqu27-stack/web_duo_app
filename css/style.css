@@ -3746,6 +3746,54 @@ body.user-female {
   outline: none;
 }
 
+.assignee-buttons {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.assignee-btn {
+  flex: 1;
+  padding: var(--space-sm);
+  background: var(--bg-tertiary);
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.assignee-btn:hover {
+  background: var(--bg-card-hover);
+}
+
+.assignee-btn.active {
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.1);
+  color: var(--accent);
+}
+
+.ticket-reward-preview {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.1), rgba(255, 152, 0, 0.1));
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.ticket-reward-preview span:first-child {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+#challengeReward {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #ffc107;
+}
+
 .form-group small {
   font-size: 0.7rem;
   color: var(--text-muted);

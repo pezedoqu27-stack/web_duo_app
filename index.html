@@ -576,9 +576,23 @@
                 </div>
 
                 <div class="form-group">
+                    <label>Назначить на</label>
+                    <div class="assignee-buttons">
+                        <button class="assignee-btn" data-assignee="male">👨 Он</button>
+                        <button class="assignee-btn active" data-assignee="both">💑 Вместе</button>
+                        <button class="assignee-btn" data-assignee="female">👩 Она</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
                     <label>TMDB ID фильмов (через запятую)</label>
                     <textarea id="challengeMovies" placeholder="155, 27205, 49026, 157336" rows="3"></textarea>
                     <small>Найдите ID на themoviedb.org</small>
+                </div>
+
+                <div class="ticket-reward-preview">
+                    <span>🎟️ Награда:</span>
+                    <span id="challengeReward">0 тикетов</span>
                 </div>
             </div>
 

@@ -2281,11 +2281,36 @@ App.setupChallengeEditor = function () {
     const saveBtn = document.getElementById('saveChallenge');
     const cancelBtn = document.getElementById('cancelChallenge');
     const overlay = document.querySelector('#challengeModal .modal-overlay');
+    const moviesInput = document.getElementById('challengeMovies');
 
     addBtn?.addEventListener('click', () => this.openChallengeEditor());
     saveBtn?.addEventListener('click', () => this.saveChallenge());
     cancelBtn?.addEventListener('click', () => Components.toggleModal('challengeModal', false));
     overlay?.addEventListener('click', () => Components.toggleModal('challengeModal', false));
+
+    // Assignee button handlers
+    document.querySelectorAll('.assignee-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.assignee-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            this.updateTicketReward();
+        });
+    });
+
+    // Update reward when movies change
+    moviesInput?.addEventListener('input', () => this.updateTicketReward());
+};
+
+App.updateTicketReward = function () {
+    const moviesStr = document.getElementById('challengeMovies')?.value?.trim() || '';
+    const movieIds = moviesStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+    const movieCount = movieIds.length;
+    const tickets = movieCount * 20;
+
+    const rewardEl = document.getElementById('challengeReward');
+    if (rewardEl) {
+        rewardEl.textContent = `${tickets} 🎟️ тикетов`;
+    }
 };
 
 App.editingChallengeId = null;
@@ -2303,12 +2328,26 @@ App.openChallengeEditor = function (challenge = null) {
         nameInput.value = challenge.name || '';
         emojiInput.value = challenge.icon || '🎬';
         moviesInput.value = (challenge.movieIds || []).join(', ');
+
+        // Set assignee button
+        const assignee = challenge.assignee || 'both';
+        document.querySelectorAll('.assignee-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.assignee === assignee);
+        });
     } else {
         title.textContent = '🎯 Новый челлендж';
         nameInput.value = '';
         emojiInput.value = '🎬';
         moviesInput.value = '';
+
+        // Reset to default (both)
+        document.querySelectorAll('.assignee-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.assignee === 'both');
+        });
     }
+
+    // Update ticket reward display
+    this.updateTicketReward();
 
     Components.toggleModal('challengeModal', true);
 };
@@ -2318,18 +2357,25 @@ App.saveChallenge = function () {
     const emoji = document.getElementById('challengeEmoji').value.trim() || '🎬';
     const moviesStr = document.getElementById('challengeMovies').value.trim();
 
+    // Get selected assignee
+    const activeAssignee = document.querySelector('.assignee-btn.active');
+    const assignee = activeAssignee?.dataset.assignee || 'both';
+
     if (!name) {
         Components.showToast('Введите название', 'error');
         return;
     }
 
     const movieIds = moviesStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+    const ticketReward = movieIds.length * 20;
 
     const challenge = {
         id: this.editingChallengeId || `custom_${Date.now()}`,
         name: name,
         icon: emoji,
         movieIds: movieIds,
+        assignee: assignee,
+        ticketReward: ticketReward,
         progress: 0,
         isCustom: true
     };
