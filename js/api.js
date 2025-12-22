@@ -406,5 +406,87 @@ const API = {
             console.error('Random suggestion error:', error);
             return null;
         }
+    },
+
+    /**
+     * Discover movies/TV with advanced filters
+     * @param {Object} filters - Filter options
+     * @returns {Promise<Array>}
+     */
+    async discover(filters = {}) {
+        if (!this.hasApiKey()) {
+            console.warn('TMDB API key not configured');
+            return [];
+        }
+
+        const {
+            type = 'movie',
+            excludeGenres = [],
+            yearFrom = null,
+            yearTo = null,
+            minRating = 0,
+            excludeCountries = [],
+            page = 1
+        } = filters;
+
+        try {
+            const params = {
+                page: page,
+                sort_by: 'popularity.desc',
+                include_adult: false
+            };
+
+            // Exclude genres
+            if (excludeGenres.length > 0) {
+                params.without_genres = excludeGenres.join(',');
+            }
+
+            // Year range
+            if (type === 'movie') {
+                if (yearFrom) params['primary_release_date.gte'] = `${yearFrom}-01-01`;
+                if (yearTo) params['primary_release_date.lte'] = `${yearTo}-12-31`;
+            } else {
+                if (yearFrom) params['first_air_date.gte'] = `${yearFrom}-01-01`;
+                if (yearTo) params['first_air_date.lte'] = `${yearTo}-12-31`;
+            }
+
+            // Minimum rating
+            if (minRating > 0) {
+                params['vote_average.gte'] = minRating;
+                params['vote_count.gte'] = 50; // Ensure enough votes
+            }
+
+            // Exclude countries
+            if (excludeCountries.length > 0) {
+                params.without_origin_country = excludeCountries.join('|');
+            }
+
+            const data = await this.tmdbFetch(`/discover/${type}`, params);
+            console.log('Discover Results count:', data.results?.length || 0);
+            return this.formatTMDBResults(data.results || [], type);
+        } catch (error) {
+            console.error('Discover error:', error);
+            return [];
+        }
+    },
+
+    /**
+     * Get list of all TMDB genres
+     * @param {string} type - 'movie' or 'tv'
+     * @returns {Promise<Array>}
+     */
+    async getGenres(type = 'movie') {
+        if (!this.hasApiKey()) {
+            // Return hardcoded genres if no API key
+            return Object.entries(this.GENRES).map(([id, name]) => ({ id: parseInt(id), name }));
+        }
+
+        try {
+            const data = await this.tmdbFetch(`/genre/${type}/list`);
+            return data.genres || [];
+        } catch (error) {
+            console.error('Genres error:', error);
+            return Object.entries(this.GENRES).map(([id, name]) => ({ id: parseInt(id), name }));
+        }
     }
 };

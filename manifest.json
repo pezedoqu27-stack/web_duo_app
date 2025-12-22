@@ -1,6 +1,6 @@
 {
-  "name": "Дуо",
-  "short_name": "Дуо",
+  "name": "Duo",
+  "short_name": "Duo",
   "description": "Приложение для совместного выбора фильмов",
   "start_url": "/",
   "display": "standalone",

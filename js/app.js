@@ -30,6 +30,17 @@ const App = {
         this.setupRandomizer();
         this.setupMatcher();
         this.setupProfile();
+        this.setupTurnTracker();
+        this.setupAdvancedFilters();
+        this.setupBettingSystem();
+        this.setupUserSystem();
+        this.setupVetoSystem();
+        this.setupDateNight();
+        this.setupQuoteWidget();
+        this.setupVibeCalendar();
+
+        // Apply user theme
+        this.applyUserTheme();
 
         // Load initial data
         this.loadTrending();
@@ -241,15 +252,23 @@ const App = {
         this.loadHistory();
     },
 
+    // Duration filter state
+    durationMax: 180,
+
     /**
-     * Load wishlist
+     * Load wishlist with optional duration filter
      */
     loadWishlist() {
         const container = document.getElementById('wishlistMovies');
         const emptyState = document.getElementById('wishlistEmpty');
-        const movies = Storage.getList(Storage.KEYS.WISHLIST);
+        let movies = Storage.getList(Storage.KEYS.WISHLIST);
 
         container.innerHTML = '';
+
+        // Apply duration filter if set
+        if (this.durationMax < 180) {
+            movies = movies.filter(m => !m.runtime || m.runtime <= this.durationMax);
+        }
 
         if (movies.length === 0) {
             emptyState.classList.remove('hidden');
@@ -261,6 +280,35 @@ const App = {
             container.appendChild(
                 Components.createMovieCard(movie, (m) => this.openMovieDetail(m, Storage.KEYS.WISHLIST))
             );
+        });
+    },
+
+    /**
+     * Setup duration filter slider
+     */
+    setupDurationFilter() {
+        const slider = document.getElementById('durationSlider');
+        const valueDisplay = document.getElementById('durationValue');
+
+        if (!slider) return;
+
+        slider.addEventListener('input', () => {
+            const val = parseInt(slider.value);
+            this.durationMax = val;
+
+            // Update display
+            if (val >= 180) {
+                valueDisplay.textContent = 'Любой';
+            } else if (val >= 60) {
+                const hours = Math.floor(val / 60);
+                const mins = val % 60;
+                valueDisplay.textContent = mins > 0 ? `< ${hours}ч ${mins}м` : `< ${hours}ч`;
+            } else {
+                valueDisplay.textContent = `< ${val}м`;
+            }
+
+            // Re-render wishlist
+            this.loadWishlist();
         });
     },
 
@@ -285,6 +333,74 @@ const App = {
                 Components.createMovieListItem(movie, (m) => this.openMovieDetail(m, Storage.KEYS.WATCHING))
             );
         });
+
+        // Render calendar for TV series
+        this.renderCalendar(movies);
+    },
+
+    /**
+     * Render upcoming episodes calendar
+     * @param {Array} movies - Watching movies list
+     */
+    renderCalendar(movies) {
+        const container = document.getElementById('calendarEpisodes');
+        const widget = document.getElementById('calendarWidget');
+        if (!container || !widget) return;
+
+        // Get only TV series with episodes
+        const tvShows = movies.filter(m => m.type === 'tv' && m.totalEpisodes > 0);
+
+        if (tvShows.length === 0) {
+            container.innerHTML = '<p class="empty-hint">Добавьте сериалы для отслеживания</p>';
+            widget.style.display = 'none';
+            return;
+        }
+
+        widget.style.display = 'block';
+
+        // Simulate upcoming episodes (in real app would use TMDB TV episode data)
+        const today = new Date();
+        const episodes = tvShows.map((show, i) => {
+            const nextEp = (show.currentEpisode || 0) + 1;
+            const daysUntil = (i % 7); // Simulate different release days
+            const airDate = new Date(today);
+            airDate.setDate(airDate.getDate() + daysUntil);
+
+            return {
+                show,
+                episode: nextEp,
+                airDate,
+                daysUntil
+            };
+        }).sort((a, b) => a.daysUntil - b.daysUntil);
+
+        container.innerHTML = episodes.slice(0, 5).map(ep => {
+            const dateStr = ep.airDate.toLocaleDateString('ru', { weekday: 'short', day: 'numeric', month: 'short' });
+            let badgeClass = '';
+            let badgeText = '';
+
+            if (ep.daysUntil === 0) {
+                badgeClass = 'today';
+                badgeText = 'Сегодня';
+            } else if (ep.daysUntil === 1) {
+                badgeClass = 'soon';
+                badgeText = 'Завтра';
+            } else {
+                badgeText = `${ep.daysUntil} дн.`;
+            }
+
+            return `
+                <div class="calendar-episode" data-id="${ep.show.id}">
+                    ${ep.show.backdrop ? `<img class="calendar-episode-poster" src="${ep.show.backdrop}" alt="">` : ''}
+                    <div class="calendar-episode-title">${ep.show.title}</div>
+                    <div class="calendar-episode-info">S${(ep.show.totalSeasons || 1)} E${ep.episode}</div>
+                    <div class="calendar-episode-date">
+                        <span class="calendar-badge ${badgeClass}">${badgeText}</span>
+                        <span>${dateStr}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
     },
 
     /**
@@ -413,6 +529,11 @@ const App = {
         this.currentMovie = movie;
         Components.renderMovieDetail(movie, this.currentMovieList);
         Components.toggleModal('movieModal', true);
+
+        // Apply adaptive color theme from poster
+        if (movie.poster && typeof ColorThief !== 'undefined') {
+            ColorThief.applyToModal(movie.poster);
+        }
     },
     /**
      * Handle movie action button clicks
@@ -445,6 +566,10 @@ const App = {
 
                 if (movedMovie) {
                     this.currentMovie = movedMovie;
+
+                    // Award ticket for watching a movie!
+                    this.awardTicket('За просмотр!');
+
                     Components.renderRatingModal(movedMovie);
                     Components.toggleModal('ratingModal', true);
                 }
@@ -493,6 +618,35 @@ const App = {
             case 'next-episode':
                 Storage.updateProgress(movie.id, movie.type, (movie.currentEpisode || 0) + 1, movie.totalEpisodes);
                 movie.currentEpisode = (movie.currentEpisode || 0) + 1;
+                Components.renderMovieDetail(movie, this.currentMovieList);
+                break;
+
+            case 'open-bets':
+                Components.toggleModal('movieModal', false);
+                this.openBetModal();
+                break;
+
+            case 'i-cheated':
+                // Mark as cheated and apply penalty
+                const cheater = Storage.getActiveUser();
+                const otherUser = cheater === 'male' ? 'female' : 'male';
+
+                // Update movie with cheatedBy
+                movie.cheatedBy = cheater;
+                Storage.updateMovieInList(Storage.KEYS.WATCHING, movie);
+
+                // Penalty: -1 ticket from cheater
+                Storage.spendTicket(cheater);
+                this.updateTicketDisplay();
+
+                // Switch turn to the other user
+                Storage.setActiveUser(otherUser);
+                this.applyUserTheme();
+
+                const userData = Storage.getUserData();
+                const cheaterName = userData[cheater]?.name || (cheater === 'male' ? 'Он' : 'Она');
+                Components.showToast(`💔 ${cheaterName} согрешил(а)! -1 тикет. Выбор за партнёром!`, 'warning');
+
                 Components.renderMovieDetail(movie, this.currentMovieList);
                 break;
         }
@@ -830,6 +984,1056 @@ const App = {
                 this.loadTrending(); // Reload with real data
             }
         });
+    },
+
+    /**
+     * Setup turn tracker widget
+     */
+    setupTurnTracker() {
+        const coin = document.getElementById('turnCoin');
+        const turnName = document.getElementById('turnName');
+        const switchBtn = document.getElementById('switchTurnBtn');
+
+        // Initialize display
+        this.updateTurnDisplay();
+
+        // Switch turn on button click - now syncs with user accounts
+        switchBtn?.addEventListener('click', () => {
+            // Animate coin flip
+            coin.classList.add('flipping');
+
+            setTimeout(() => {
+                // Switch active user (syncs with user indicator in header)
+                const newUser = Storage.switchActiveUser();
+                const isFemale = newUser === 'female';
+
+                coin.classList.toggle('flipped', isFemale);
+                this.updateTurnDisplay();
+                this.applyUserTheme();
+                coin.classList.remove('flipping');
+
+                const userData = Storage.getUserData();
+                const name = userData[newUser]?.name || (isFemale ? 'Она' : 'Он');
+                Components.showToast(`Теперь выбирает ${name}!`, 'success');
+            }, 300);
+        });
+
+        // Also allow clicking coin to switch
+        coin?.addEventListener('click', () => {
+            switchBtn?.click();
+        });
+    },
+
+    /**
+     * Update turn display based on current active user
+     */
+    updateTurnDisplay() {
+        const activeUser = Storage.getActiveUser();
+        const userData = Storage.getUserData();
+        const turnName = document.getElementById('turnName');
+        const coin = document.getElementById('turnCoin');
+
+        const isFemale = activeUser === 'female';
+        const name = userData[activeUser]?.name || (isFemale ? 'Она' : 'Он');
+
+        if (turnName) {
+            turnName.textContent = name;
+        }
+        if (coin) {
+            coin.classList.toggle('flipped', isFemale);
+        }
+    },
+
+    // Advanced filter state
+    advancedFilters: {
+        excludeGenres: [],
+        yearFrom: null,
+        yearTo: null,
+        minRating: 0,
+        excludeCountries: []
+    },
+
+    /**
+     * Setup advanced filters modal
+     */
+    setupAdvancedFilters() {
+        const advancedBtn = document.getElementById('advancedFilterBtn');
+        const closeBtn = document.getElementById('closeFilters');
+        const applyBtn = document.getElementById('applyFilters');
+        const resetBtn = document.getElementById('resetFilters');
+        const minRatingSlider = document.getElementById('minRating');
+        const minRatingDisplay = document.getElementById('minRatingDisplay');
+
+        // Open filters modal
+        advancedBtn.addEventListener('click', async () => {
+            await this.loadGenresForFilter();
+            Components.toggleModal('filtersModal', true);
+        });
+
+        // Close modal
+        closeBtn.addEventListener('click', () => {
+            Components.toggleModal('filtersModal', false);
+        });
+
+        document.querySelector('#filtersModal .modal-overlay').addEventListener('click', () => {
+            Components.toggleModal('filtersModal', false);
+        });
+
+        // Rating slider
+        minRatingSlider.addEventListener('input', () => {
+            const val = parseInt(minRatingSlider.value);
+            minRatingDisplay.textContent = val === 0 ? 'Любой' : `${val}+`;
+        });
+
+        // Apply filters
+        applyBtn.addEventListener('click', () => {
+            this.applyAdvancedFilters();
+            Components.toggleModal('filtersModal', false);
+        });
+
+        // Reset filters
+        resetBtn.addEventListener('click', () => {
+            this.resetAdvancedFilters();
+        });
+    },
+
+    /**
+     * Load genres for filter modal
+     */
+    async loadGenresForFilter() {
+        const container = document.getElementById('excludeGenres');
+
+        // Common genres to exclude
+        const genres = [
+            { id: 27, name: 'Ужасы' },
+            { id: 10749, name: 'Мелодрама' },
+            { id: 16, name: 'Мультфильм' },
+            { id: 99, name: 'Документальный' },
+            { id: 10752, name: 'Военный' },
+            { id: 37, name: 'Вестерн' },
+            { id: 10402, name: 'Музыка' },
+            { id: 36, name: 'Исторический' },
+            { id: 878, name: 'Фантастика' },
+            { id: 53, name: 'Триллер' },
+            { id: 80, name: 'Криминал' },
+            { id: 14, name: 'Фэнтези' }
+        ];
+
+        container.innerHTML = genres.map(g => `
+            <button class="genre-btn ${this.advancedFilters.excludeGenres.includes(g.id) ? 'excluded' : ''}" 
+                    data-genre-id="${g.id}">
+                ${g.name}
+            </button>
+        `).join('');
+
+        // Genre click handler
+        container.addEventListener('click', (e) => {
+            const btn = e.target.closest('.genre-btn');
+            if (!btn) return;
+
+            const genreId = parseInt(btn.dataset.genreId);
+            btn.classList.toggle('excluded');
+
+            if (btn.classList.contains('excluded')) {
+                if (!this.advancedFilters.excludeGenres.includes(genreId)) {
+                    this.advancedFilters.excludeGenres.push(genreId);
+                }
+            } else {
+                this.advancedFilters.excludeGenres = this.advancedFilters.excludeGenres.filter(id => id !== genreId);
+            }
+        });
+
+        // Restore previous filter values
+        document.getElementById('yearFrom').value = this.advancedFilters.yearFrom || '';
+        document.getElementById('yearTo').value = this.advancedFilters.yearTo || '';
+        document.getElementById('minRating').value = this.advancedFilters.minRating;
+        document.getElementById('minRatingDisplay').textContent =
+            this.advancedFilters.minRating === 0 ? 'Любой' : `${this.advancedFilters.minRating}+`;
+
+        // Restore country checkboxes
+        document.getElementById('excludeRU').checked = this.advancedFilters.excludeCountries.includes('RU');
+        document.getElementById('excludeIN').checked = this.advancedFilters.excludeCountries.includes('IN');
+        document.getElementById('excludeTR').checked = this.advancedFilters.excludeCountries.includes('TR');
+    },
+
+    /**
+     * Apply advanced filters and search
+     */
+    async applyAdvancedFilters() {
+        // Gather filter values
+        this.advancedFilters.yearFrom = document.getElementById('yearFrom').value || null;
+        this.advancedFilters.yearTo = document.getElementById('yearTo').value || null;
+        this.advancedFilters.minRating = parseInt(document.getElementById('minRating').value) || 0;
+
+        // Countries
+        this.advancedFilters.excludeCountries = [];
+        if (document.getElementById('excludeRU').checked) this.advancedFilters.excludeCountries.push('RU');
+        if (document.getElementById('excludeIN').checked) this.advancedFilters.excludeCountries.push('IN');
+        if (document.getElementById('excludeTR').checked) this.advancedFilters.excludeCountries.push('TR');
+
+        // Update button state
+        const hasFilters = this.advancedFilters.excludeGenres.length > 0 ||
+            this.advancedFilters.yearFrom ||
+            this.advancedFilters.yearTo ||
+            this.advancedFilters.minRating > 0 ||
+            this.advancedFilters.excludeCountries.length > 0;
+
+        document.getElementById('advancedFilterBtn').classList.toggle('has-filters', hasFilters);
+
+        // Perform discover search with filters
+        if (hasFilters) {
+            await this.performDiscoverSearch();
+        }
+    },
+
+    /**
+     * Perform discover search with current filters
+     */
+    async performDiscoverSearch() {
+        const resultsContainer = document.getElementById('searchResults');
+        const trendingSection = document.getElementById('trendingSection');
+
+        if (!API.hasApiKey()) {
+            Components.showToast('Добавьте TMDB API ключ', 'error');
+            return;
+        }
+
+        // Show loading
+        resultsContainer.innerHTML = '';
+        resultsContainer.appendChild(Components.createSkeletons(6));
+        trendingSection.classList.add('hidden');
+
+        try {
+            const results = await API.discover({
+                type: 'movie',
+                excludeGenres: this.advancedFilters.excludeGenres,
+                yearFrom: this.advancedFilters.yearFrom,
+                yearTo: this.advancedFilters.yearTo,
+                minRating: this.advancedFilters.minRating,
+                excludeCountries: this.advancedFilters.excludeCountries
+            });
+
+            resultsContainer.innerHTML = '';
+
+            if (results.length === 0) {
+                resultsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <p>Ничего не найдено</p>
+                        <span>Попробуйте изменить фильтры</span>
+                    </div>
+                `;
+                return;
+            }
+
+            // Show filter summary
+            const filterSummary = this.getFilterSummary();
+            if (filterSummary) {
+                const summaryDiv = document.createElement('div');
+                summaryDiv.className = 'filter-summary';
+                summaryDiv.innerHTML = `<p>🎯 ${filterSummary}</p>`;
+                resultsContainer.appendChild(summaryDiv);
+            }
+
+            results.forEach(movie => {
+                resultsContainer.appendChild(
+                    Components.createMovieCard(movie, (m) => this.openMovieDetail(m))
+                );
+            });
+
+            Components.showToast(`Найдено ${results.length} фильмов`, 'success');
+        } catch (error) {
+            console.error('Discover error:', error);
+            resultsContainer.innerHTML = `
+                <div class="empty-state">
+                    <p>Ошибка поиска</p>
+                    <span>Проверьте API ключ</span>
+                </div>
+            `;
+        }
+    },
+
+    /**
+     * Get human-readable filter summary
+     * @returns {string}
+     */
+    getFilterSummary() {
+        const parts = [];
+
+        if (this.advancedFilters.yearFrom || this.advancedFilters.yearTo) {
+            const from = this.advancedFilters.yearFrom || '...';
+            const to = this.advancedFilters.yearTo || '...';
+            parts.push(`${from}–${to}`);
+        }
+
+        if (this.advancedFilters.minRating > 0) {
+            parts.push(`рейтинг ${this.advancedFilters.minRating}+`);
+        }
+
+        if (this.advancedFilters.excludeGenres.length > 0) {
+            parts.push(`без ${this.advancedFilters.excludeGenres.length} жанров`);
+        }
+
+        if (this.advancedFilters.excludeCountries.length > 0) {
+            parts.push(`без ${this.advancedFilters.excludeCountries.join(', ')}`);
+        }
+
+        return parts.join(', ');
+    },
+
+    /**
+     * Reset all advanced filters
+     */
+    resetAdvancedFilters() {
+        this.advancedFilters = {
+            excludeGenres: [],
+            yearFrom: null,
+            yearTo: null,
+            minRating: 0,
+            excludeCountries: []
+        };
+
+        // Reset UI
+        document.querySelectorAll('.genre-btn').forEach(btn => btn.classList.remove('excluded'));
+        document.getElementById('yearFrom').value = '';
+        document.getElementById('yearTo').value = '';
+        document.getElementById('minRating').value = 0;
+        document.getElementById('minRatingDisplay').textContent = 'Любой';
+        document.getElementById('excludeRU').checked = false;
+        document.getElementById('excludeIN').checked = false;
+        document.getElementById('excludeTR').checked = false;
+        document.getElementById('advancedFilterBtn').classList.remove('has-filters');
+
+        Components.showToast('Фильтры сброшены');
+    },
+
+    /**
+     * Setup betting system
+     */
+    setupBettingSystem() {
+        const closeBtn = document.getElementById('closeBetModal');
+        const tabs = document.querySelectorAll('.bet-tab');
+        const userBtns = document.querySelectorAll('.bet-user');
+        const saveBtn = document.getElementById('saveBet');
+        const revealAllBtn = document.getElementById('revealAllBets');
+
+        // Close modal
+        closeBtn.addEventListener('click', () => {
+            Components.toggleModal('betModal', false);
+        });
+
+        document.querySelector('#betModal .modal-overlay').addEventListener('click', () => {
+            Components.toggleModal('betModal', false);
+        });
+
+        // Tab switching
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                const tabName = tab.dataset.tab;
+                document.getElementById('betPlaceTab').classList.toggle('hidden', tabName !== 'place');
+                document.getElementById('betRevealTab').classList.toggle('hidden', tabName !== 'reveal');
+
+                if (tabName === 'reveal') {
+                    this.renderBetsList();
+                }
+            });
+        });
+
+        // User selection
+        userBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                userBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+
+        // Save bet
+        saveBtn.addEventListener('click', () => {
+            const movie = this.currentMovie;
+            if (!movie) return;
+
+            const prediction = document.getElementById('betPrediction').value.trim();
+            if (!prediction) {
+                Components.showToast('Введите ваш прогноз', 'error');
+                return;
+            }
+
+            const activeUser = document.querySelector('.bet-user.active');
+            const userNum = parseInt(activeUser?.dataset.user || 1);
+            const users = Storage.getUsers();
+            const userName = userNum === 1 ? (users.name1 || 'Персона 1') : (users.name2 || 'Персона 2');
+
+            Storage.addBet({
+                movieId: movie.id,
+                movieType: movie.type,
+                movieTitle: movie.title,
+                user: userNum,
+                userName: userName,
+                prediction: prediction
+            });
+
+            document.getElementById('betPrediction').value = '';
+            Components.showToast('🔒 Прогноз сохранён!', 'success');
+            Components.toggleModal('betModal', false);
+        });
+
+        // Reveal all bets
+        revealAllBtn.addEventListener('click', () => {
+            const movie = this.currentMovie;
+            if (!movie) return;
+
+            const revealed = Storage.revealAllMovieBets(movie.id, movie.type);
+            if (revealed > 0) {
+                this.renderBetsList();
+                Components.showToast(`Раскрыто ${revealed} прогнозов!`, 'success');
+            } else {
+                Components.showToast('Нечего раскрывать', 'error');
+            }
+        });
+    },
+
+    /**
+     * Open betting modal for current movie
+     */
+    openBetModal() {
+        const movie = this.currentMovie;
+        if (!movie) return;
+
+        const users = Storage.getUsers();
+        document.getElementById('betMovieTitle').textContent = movie.title;
+        document.getElementById('betUser1').textContent = users.name1 || 'Персона 1';
+        document.getElementById('betUser2').textContent = users.name2 || 'Персона 2';
+        document.getElementById('betPrediction').value = '';
+
+        // Reset to place tab
+        document.querySelectorAll('.bet-tab').forEach(t => t.classList.remove('active'));
+        document.querySelector('.bet-tab[data-tab="place"]').classList.add('active');
+        document.getElementById('betPlaceTab').classList.remove('hidden');
+        document.getElementById('betRevealTab').classList.add('hidden');
+
+        this.renderBetsList();
+        Components.toggleModal('betModal', true);
+    },
+
+    /**
+     * Render bets list for current movie
+     */
+    renderBetsList() {
+        const movie = this.currentMovie;
+        if (!movie) return;
+
+        const container = document.getElementById('betsList');
+        const bets = Storage.getMovieBets(movie.id, movie.type);
+
+        if (bets.length === 0) {
+            container.innerHTML = '<p class="empty-hint">Пока нет ставок для этого фильма</p>';
+            return;
+        }
+
+        container.innerHTML = bets.map(bet => `
+            <div class="bet-card" data-bet-id="${bet.id}">
+                <div class="bet-card-header">
+                    <span class="bet-card-user">${bet.userName || 'Аноним'}</span>
+                    <span class="bet-card-date">${new Date(bet.createdAt).toLocaleDateString('ru')}</span>
+                </div>
+                <div class="bet-card-prediction ${bet.revealed ? 'revealed' : 'hidden-bet'}">
+                    ${bet.prediction}
+                </div>
+            </div>
+        `).join('');
+
+        // Click to reveal individual bets
+        container.querySelectorAll('.bet-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const betId = card.dataset.betId;
+                const prediction = card.querySelector('.bet-card-prediction');
+
+                if (prediction.classList.contains('hidden-bet')) {
+                    Storage.revealBet(betId);
+                    prediction.classList.remove('hidden-bet');
+                    prediction.classList.add('revealed');
+                }
+            });
+        });
+    },
+
+    /**
+     * Render challenges in profile section
+     */
+    renderChallenges() {
+        const container = document.getElementById('challengesGrid');
+        if (!container) return;
+
+        const challengesData = Storage.CHALLENGES_DATA;
+        const userChallenges = Storage.getChallenges();
+
+        container.innerHTML = Object.values(challengesData).map(challenge => {
+            const isStarted = !!userChallenges[challenge.id];
+            const progress = Storage.getChallengeProgress(challenge.id);
+            const completed = userChallenges[challenge.id]?.completed?.length || 0;
+            const total = challenge.movies.length;
+
+            return `
+                <div class="challenge-card ${isStarted ? 'active' : ''}" data-challenge-id="${challenge.id}">
+                    <div class="challenge-header">
+                        <span class="challenge-icon">${challenge.icon}</span>
+                        <div class="challenge-info">
+                            <div class="challenge-name">
+                                ${challenge.name}
+                                ${progress === 100 ? '<span class="challenge-badge">✓ Завершён</span>' : ''}
+                            </div>
+                            <div class="challenge-desc">${challenge.description}</div>
+                        </div>
+                    </div>
+                    ${isStarted ? `
+                        <div class="challenge-progress">
+                            <div class="challenge-progress-bar">
+                                <div class="challenge-progress-fill" style="width: ${progress}%"></div>
+                            </div>
+                            <div class="challenge-progress-text">
+                                <span>${completed} / ${total} фильмов</span>
+                                <span>${progress}%</span>
+                            </div>
+                        </div>
+                    ` : '<p class="empty-hint">Нажмите чтобы начать</p>'}
+                </div>
+            `;
+        }).join('');
+
+        // Click handlers
+        container.querySelectorAll('.challenge-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const challengeId = card.dataset.challengeId;
+                const challenge = challengesData[challengeId];
+                const isStarted = !!userChallenges[challengeId];
+
+                if (!isStarted) {
+                    Storage.startChallenge(challengeId);
+                    Components.showToast(`Челлендж "${challenge.name}" начат!`, 'success');
+                    this.renderChallenges();
+                } else {
+                    // Show movies to tick off
+                    this.showChallengeMovies(challengeId);
+                }
+            });
+        });
+    },
+
+    /**
+     * Show challenge movies modal (simple alert for now)
+     */
+    showChallengeMovies(challengeId) {
+        const challenge = Storage.CHALLENGES_DATA[challengeId];
+        const userChallenges = Storage.getChallenges();
+        const completed = userChallenges[challengeId]?.completed || [];
+
+        const list = challenge.movies.map((m, i) => {
+            const isDone = completed.includes(m.tmdbId);
+            return `${isDone ? '✅' : '⬜'} ${i + 1}. ${m.title}`;
+        }).join('\n');
+
+        Components.showToast(`${challenge.name}: ${completed.length}/${challenge.movies.length} просмотрено`, 'success');
+        console.log('Challenge movies:\n' + list);
+    },
+
+    // ============================================
+    // USER ACCOUNT SYSTEM
+    // ============================================
+
+    /**
+     * Setup user system with indicator click handler
+     */
+    setupUserSystem() {
+        const indicator = document.getElementById('userIndicator');
+        if (!indicator) return;
+
+        indicator.addEventListener('click', () => {
+            const newUser = Storage.switchActiveUser();
+            this.applyUserTheme();
+
+            const userData = Storage.getUserData();
+            const userName = userData[newUser]?.name || (newUser === 'male' ? 'Он' : 'Она');
+            Components.showToast(`Переключено на: ${userName}`, 'success');
+        });
+    },
+
+    /**
+     * Apply user theme to body and update UI elements
+     */
+    applyUserTheme() {
+        const activeUser = Storage.getActiveUser();
+        const userData = Storage.getUserData();
+        const userInfo = userData[activeUser];
+
+        // Update body class for theme
+        document.body.classList.remove('user-male', 'user-female');
+        document.body.classList.add(`user-${activeUser}`);
+
+        // Update user indicator
+        const userIcon = document.getElementById('userIcon');
+        const userName = document.getElementById('userName');
+        const ticketCount = document.getElementById('ticketCount');
+
+        if (userIcon) {
+            userIcon.textContent = activeUser === 'male' ? '👨' : '👩';
+        }
+        if (userName) {
+            userName.textContent = userInfo?.name || (activeUser === 'male' ? 'Он' : 'Она');
+        }
+        if (ticketCount) {
+            ticketCount.textContent = userInfo?.tickets || 0;
+        }
+
+        // Update turn tracker coin to match
+        const turnName = document.getElementById('turnName');
+        if (turnName) {
+            turnName.textContent = activeUser === 'male' ? 'Он выбирает' : 'Она выбирает';
+        }
+    },
+
+    /**
+     * Update ticket display
+     */
+    updateTicketDisplay() {
+        const ticketCount = document.getElementById('ticketCount');
+        if (ticketCount) {
+            ticketCount.textContent = Storage.getTickets();
+        }
+    },
+
+    /**
+     * Award ticket to current user (e.g., for watching partner's choice)
+     */
+    awardTicket(reason = '') {
+        const activeUser = Storage.getActiveUser();
+        const newBalance = Storage.addTicket(activeUser);
+        this.updateTicketDisplay();
+        Components.showToast(`🎟️ +1 тикет! (${newBalance}) ${reason}`, 'success');
+    },
+
+    /**
+     * Spend ticket to force movie choice
+     */
+    useTicketToForce() {
+        const activeUser = Storage.getActiveUser();
+        if (Storage.spendTicket(activeUser)) {
+            this.updateTicketDisplay();
+            Components.showToast('🎟️ Тикет использован! Выбор за тобой!', 'success');
+            return true;
+        } else {
+            Components.showToast('Недостаточно тикетов!', 'error');
+            return false;
+        }
+    },
+
+    // ============================================
+    // VETO SYSTEM
+    // ============================================
+    vetoSession: null,
+
+    /**
+     * Setup veto button and modal
+     */
+    setupVetoSystem() {
+        const vetoBtn = document.getElementById('vetoBtn');
+        const cancelBtn = document.getElementById('vetoCancel');
+        const confirmBtn = document.getElementById('vetoConfirm');
+        const closeBtn = document.getElementById('vetoClose');
+
+        if (vetoBtn) {
+            vetoBtn.addEventListener('click', () => this.startVetoSession());
+        }
+
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                Components.toggleModal('vetoModal', false);
+                this.vetoSession = null;
+            });
+        }
+
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', () => this.confirmVeto());
+        }
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                Components.toggleModal('vetoModal', false);
+                this.vetoSession = null;
+            });
+        }
+
+        document.querySelector('#vetoModal .modal-overlay')?.addEventListener('click', () => {
+            Components.toggleModal('vetoModal', false);
+        });
+    },
+
+    /**
+     * Start a new veto session
+     */
+    startVetoSession() {
+        const wishlist = Storage.getList(Storage.KEYS.WISHLIST);
+        if (wishlist.length < 10) {
+            Components.showToast(`Нужно минимум 10 фильмов в вишлисте (сейчас ${wishlist.length})`, 'error');
+            return;
+        }
+
+        // Select 10 random movies
+        const shuffled = [...wishlist].sort(() => 0.5 - Math.random());
+        const selected = shuffled.slice(0, 10);
+
+        this.vetoSession = {
+            movies: selected,
+            vetoes: { male: [], female: [] },
+            currentUser: Storage.getActiveUser()
+        };
+
+        this.renderVetoGrid();
+        this.updateVetoUI();
+
+        // Hide results, show selection
+        document.getElementById('vetoResults').classList.add('hidden');
+        document.querySelector('.veto-grid').classList.remove('hidden');
+        document.querySelector('.veto-actions').classList.remove('hidden');
+        document.querySelector('.veto-hint').classList.remove('hidden');
+        document.querySelector('.veto-user-indicator').classList.remove('hidden');
+
+        Components.toggleModal('vetoModal', true);
+    },
+
+    /**
+     * Render veto movie grid
+     */
+    renderVetoGrid() {
+        const grid = document.getElementById('vetoGrid');
+        if (!grid || !this.vetoSession) return;
+
+        const { movies, vetoes, currentUser } = this.vetoSession;
+        const userVetoes = vetoes[currentUser] || [];
+
+        grid.innerHTML = movies.map((movie, idx) => {
+            const isVetoed = userVetoes.includes(idx);
+            return `
+                <div class="veto-movie ${isVetoed ? 'vetoed' : ''}" data-idx="${idx}">
+                    <img src="${movie.poster || ''}" alt="${movie.title}">
+                </div>
+            `;
+        }).join('');
+
+        // Click handlers
+        grid.querySelectorAll('.veto-movie').forEach(el => {
+            el.addEventListener('click', () => {
+                const idx = parseInt(el.dataset.idx);
+                this.handleVetoClick(idx);
+            });
+        });
+    },
+
+    /**
+     * Handle click on movie in veto grid
+     */
+    handleVetoClick(idx) {
+        if (!this.vetoSession) return;
+
+        const { vetoes, currentUser } = this.vetoSession;
+        const userVetoes = vetoes[currentUser];
+
+        if (userVetoes.includes(idx)) {
+            // Remove veto
+            vetoes[currentUser] = userVetoes.filter(i => i !== idx);
+        } else if (userVetoes.length < 3) {
+            // Add veto
+            userVetoes.push(idx);
+        } else {
+            Components.showToast('Максимум 3 вето!', 'error');
+            return;
+        }
+
+        this.renderVetoGrid();
+        this.updateVetoUI();
+    },
+
+    /**
+     * Update veto UI (count, button state)
+     */
+    updateVetoUI() {
+        if (!this.vetoSession) return;
+
+        const { vetoes, currentUser } = this.vetoSession;
+        const count = vetoes[currentUser]?.length || 0;
+        const userData = Storage.getUserData();
+
+        document.getElementById('vetoCount').textContent = `${count} / 3`;
+        document.getElementById('vetoUserIcon').textContent = currentUser === 'male' ? '👨' : '👩';
+        document.getElementById('vetoUserName').textContent = userData[currentUser]?.name || (currentUser === 'male' ? 'Он' : 'Она');
+        document.getElementById('vetoConfirm').disabled = count !== 3;
+    },
+
+    /**
+     * Confirm veto selection for current user
+     */
+    confirmVeto() {
+        if (!this.vetoSession) return;
+
+        const { vetoes, currentUser } = this.vetoSession;
+        const otherUser = currentUser === 'male' ? 'female' : 'male';
+
+        if (vetoes[otherUser].length === 0) {
+            // First user done, switch to second
+            this.vetoSession.currentUser = otherUser;
+            Storage.setActiveUser(otherUser);
+            this.applyUserTheme();
+
+            const userData = Storage.getUserData();
+            Components.showToast(`Теперь очередь: ${userData[otherUser]?.name || 'Она'}`, 'success');
+
+            this.renderVetoGrid();
+            this.updateVetoUI();
+        } else {
+            // Both done, show results
+            this.showVetoResults();
+        }
+    },
+
+    /**
+     * Show veto results (remaining 4 movies)
+     */
+    showVetoResults() {
+        if (!this.vetoSession) return;
+
+        const { movies, vetoes } = this.vetoSession;
+        const allVetoed = [...new Set([...vetoes.male, ...vetoes.female])];
+        const remaining = movies.filter((_, idx) => !allVetoed.includes(idx));
+
+        // Hide selection, show results
+        document.querySelector('.veto-grid').classList.add('hidden');
+        document.querySelector('.veto-actions').classList.add('hidden');
+        document.querySelector('.veto-hint').classList.add('hidden');
+        document.querySelector('.veto-user-indicator').classList.add('hidden');
+
+        const resultsDiv = document.getElementById('vetoResults');
+        const resultsGrid = document.getElementById('vetoResultsGrid');
+
+        resultsGrid.innerHTML = remaining.map(movie => `
+            <div class="veto-result-movie">
+                <img src="${movie.poster || ''}" alt="${movie.title}">
+            </div>
+        `).join('');
+
+        resultsDiv.classList.remove('hidden');
+        Components.showToast(`🎉 Осталось ${remaining.length} фильма(ов)!`, 'success');
+    },
+
+    // ============================================
+    // DATE NIGHT GENERATOR
+    // ============================================
+    dateNightOptions: {
+        food: ['Пицца', 'Суши', 'Бургеры', 'Попкорн', 'Мороженое', 'Фрукты', 'Доширак', 'Сыр и вино'],
+        dress: ['Пижамы', 'Нарядно', 'Уютно', 'Спортивно', 'Без правил', 'В пледах'],
+        atmosphere: ['Зажечь свечи', 'Выключить свет', 'Устроить форт из подушек', 'Открыть окно', 'Включить гирлянду']
+    },
+
+    /**
+     * Setup Date Night Generator
+     */
+    setupDateNight() {
+        const btn = document.getElementById('dateNightBtn');
+        const closeBtn = document.getElementById('dateNightClose');
+        const regenerateBtn = document.getElementById('dateNightRegenerate');
+
+        if (btn) {
+            btn.addEventListener('click', () => this.openDateNight());
+        }
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                Components.toggleModal('dateNightModal', false);
+            });
+        }
+
+        if (regenerateBtn) {
+            regenerateBtn.addEventListener('click', () => this.generateDateNight());
+        }
+
+        document.querySelector('#dateNightModal .modal-overlay')?.addEventListener('click', () => {
+            Components.toggleModal('dateNightModal', false);
+        });
+    },
+
+    /**
+     * Open Date Night modal
+     */
+    openDateNight() {
+        this.generateDateNight();
+        Components.toggleModal('dateNightModal', true);
+    },
+
+    /**
+     * Generate random date night options
+     */
+    generateDateNight() {
+        const wishlist = Storage.getList(Storage.KEYS.WISHLIST);
+        const randomMovie = wishlist.length > 0
+            ? wishlist[Math.floor(Math.random() * wishlist.length)]
+            : null;
+
+        document.getElementById('dateNightMovie').textContent =
+            randomMovie ? randomMovie.title : 'Выберите из вишлиста';
+
+        const { food, dress, atmosphere } = this.dateNightOptions;
+        document.getElementById('dateNightFood').textContent = food[Math.floor(Math.random() * food.length)];
+        document.getElementById('dateNightDress').textContent = dress[Math.floor(Math.random() * dress.length)];
+        document.getElementById('dateNightAtmosphere').textContent = atmosphere[Math.floor(Math.random() * atmosphere.length)];
+    },
+
+    // ============================================
+    // QUOTE OF THE DAY WIDGET
+    // ============================================
+
+    /**
+     * Setup and render Quote of the Day widget
+     */
+    setupQuoteWidget() {
+        const quote = Storage.getRandomQuote();
+        const widget = document.getElementById('quoteWidget');
+
+        if (!widget) return;
+
+        if (quote) {
+            widget.classList.remove('hidden');
+            document.getElementById('quoteText').textContent = quote.text;
+            document.getElementById('quoteMovie').textContent = `— ${quote.movieTitle}`;
+        } else {
+            widget.classList.add('hidden');
+        }
+    },
+
+    // ============================================
+    // VIBE CALENDAR (Emotional Calendar)
+    // ============================================
+    vibeMonth: new Date(),
+    genreColors: {
+        'Horror': '#ff6b6b',
+        'Romance': '#f8a5c2',
+        'Action': '#6ea8fe',
+        'Comedy': '#a8d5ba',
+        'Drama': '#e8d5a8',
+        'Thriller': '#c9b1ff',
+        'Animation': '#ffd93d',
+        'default': '#b8a5d3'
+    },
+
+    /**
+     * Setup Vibe Calendar
+     */
+    setupVibeCalendar() {
+        const viewBtns = document.querySelectorAll('.view-btn');
+        const prevBtn = document.getElementById('vibePrev');
+        const nextBtn = document.getElementById('vibeNext');
+
+        viewBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                viewBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const view = btn.dataset.view;
+                const calendar = document.getElementById('vibeCalendar');
+                const list = document.getElementById('historyMovies');
+
+                if (view === 'calendar') {
+                    calendar?.classList.remove('hidden');
+                    list?.classList.add('hidden');
+                    this.renderVibeCalendar();
+                } else {
+                    calendar?.classList.add('hidden');
+                    list?.classList.remove('hidden');
+                }
+            });
+        });
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => {
+                this.vibeMonth.setMonth(this.vibeMonth.getMonth() - 1);
+                this.renderVibeCalendar();
+            });
+        }
+
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => {
+                this.vibeMonth.setMonth(this.vibeMonth.getMonth() + 1);
+                this.renderVibeCalendar();
+            });
+        }
+    },
+
+    /**
+     * Render Vibe Calendar grid
+     */
+    renderVibeCalendar() {
+        const grid = document.getElementById('vibeCalendarGrid');
+        const monthLabel = document.getElementById('vibeMonth');
+        if (!grid) return;
+
+        const year = this.vibeMonth.getFullYear();
+        const month = this.vibeMonth.getMonth();
+
+        // Update month label
+        const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+            'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+        monthLabel.textContent = `${monthNames[month]} ${year}`;
+
+        // Get history movies
+        const history = Storage.getList(Storage.KEYS.HISTORY);
+        const moviesByDay = {};
+
+        history.forEach(movie => {
+            if (movie.watchedAt) {
+                const date = new Date(movie.watchedAt);
+                if (date.getFullYear() === year && date.getMonth() === month) {
+                    const day = date.getDate();
+                    moviesByDay[day] = movie;
+                }
+            }
+        });
+
+        // Day headers
+        const dayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+        let html = dayNames.map(d => `<div class="vibe-day-header">${d}</div>`).join('');
+
+        // Get first day of month (0=Sun, adjust for Mon start)
+        const firstDay = new Date(year, month, 1).getDay();
+        const adjustedFirst = firstDay === 0 ? 6 : firstDay - 1;
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const today = new Date();
+
+        // Empty cells before first day
+        for (let i = 0; i < adjustedFirst; i++) {
+            html += '<div class="vibe-day empty"></div>';
+        }
+
+        // Day cells
+        for (let day = 1; day <= daysInMonth; day++) {
+            const movie = moviesByDay[day];
+            const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+            let classes = 'vibe-day';
+            let style = '';
+
+            if (movie) {
+                classes += ' has-movie';
+                const genre = movie.genres?.[0] || 'default';
+                const color = this.genreColors[genre] || this.genreColors.default;
+                style = `background: ${color};`;
+            }
+
+            if (isToday) {
+                classes += ' today';
+            }
+
+            html += `<div class="${classes}" style="${style}" title="${movie?.title || ''}">${day}</div>`;
+        }
+
+        grid.innerHTML = html;
     }
 };
 

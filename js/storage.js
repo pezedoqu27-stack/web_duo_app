@@ -11,8 +11,17 @@ const Storage = {
         HISTORY: 'duo_history',
         SETTINGS: 'duo_settings',
         API_KEY: 'duo_api_key',
+        PERPLEXITY_KEY: 'duo_perplexity_key',
+        TURN_DATA: 'duo_turn_data',
+        BETS: 'duo_bets',
+        CHALLENGES: 'duo_challenges',
         USERS: 'duo_users',
-        CUSTOM_TAGS: 'duo_custom_tags'
+        CUSTOM_TAGS: 'duo_custom_tags',
+        ACTIVE_USER: 'duo_active_user',
+        USER_DATA: 'duo_user_data',
+        MATCHER_LIKES: 'duo_matcher_likes',
+        VETO_SESSION: 'duo_veto_session',
+        QUOTES: 'duo_quotes'
     },
 
     /**
@@ -81,6 +90,22 @@ const Storage = {
     },
 
     /**
+     * Get Perplexity API key
+     * @returns {string|null}
+     */
+    getPerplexityKey() {
+        return this.get(this.KEYS.PERPLEXITY_KEY);
+    },
+
+    /**
+     * Set Perplexity API key
+     * @param {string} key
+     */
+    setPerplexityKey(key) {
+        this.set(this.KEYS.PERPLEXITY_KEY, key);
+    },
+
+    /**
      * Get user names
      * @returns {Object} { name1, name2 }
      */
@@ -95,6 +120,319 @@ const Storage = {
      */
     setUsers(name1, name2) {
         this.set(this.KEYS.USERS, { name1, name2 });
+    },
+
+    /**
+     * Get current turn data
+     * @returns {Object} { currentTurn: 1|2, lastChanged: Date }
+     */
+    getTurn() {
+        return this.get(this.KEYS.TURN_DATA) || { currentTurn: 1, lastChanged: null };
+    },
+
+    /**
+     * Switch turn to other user
+     * @returns {Object} New turn data
+     */
+    switchTurn() {
+        const current = this.getTurn();
+        const newTurn = {
+            currentTurn: current.currentTurn === 1 ? 2 : 1,
+            lastChanged: Date.now()
+        };
+        this.set(this.KEYS.TURN_DATA, newTurn);
+        return newTurn;
+    },
+
+    /**
+     * Reset turn (e.g., after watching a movie)
+     */
+    resetTurn() {
+        this.set(this.KEYS.TURN_DATA, { currentTurn: 1, lastChanged: null });
+    },
+
+    // ============================================
+    // USER ACCOUNTS & CINEMA CURRENCY
+    // ============================================
+
+    /**
+     * Get active user ('male' or 'female')
+     * @returns {string}
+     */
+    getActiveUser() {
+        return this.get(this.KEYS.ACTIVE_USER) || 'male';
+    },
+
+    /**
+     * Switch active user between male/female
+     * @returns {string} new active user
+     */
+    switchActiveUser() {
+        const current = this.getActiveUser();
+        const newUser = current === 'male' ? 'female' : 'male';
+        this.set(this.KEYS.ACTIVE_USER, newUser);
+        return newUser;
+    },
+
+    /**
+     * Set active user directly
+     * @param {string} user - 'male' or 'female'
+     */
+    setActiveUser(user) {
+        if (user === 'male' || user === 'female') {
+            this.set(this.KEYS.ACTIVE_USER, user);
+        }
+    },
+
+    /**
+     * Get user data (tickets, name, color)
+     * @returns {Object}
+     */
+    getUserData() {
+        return this.get(this.KEYS.USER_DATA) || {
+            male: { tickets: 0, name: 'Он', color: '#6ea8fe' },
+            female: { tickets: 0, name: 'Она', color: '#f8a5c2' }
+        };
+    },
+
+    /**
+     * Get tickets for active user
+     * @param {string} user - optional, defaults to active user
+     * @returns {number}
+     */
+    getTickets(user = null) {
+        const userData = this.getUserData();
+        const targetUser = user || this.getActiveUser();
+        return userData[targetUser]?.tickets || 0;
+    },
+
+    /**
+     * Add ticket to user
+     * @param {string} user - 'male' or 'female'
+     * @param {number} amount - tickets to add
+     */
+    addTicket(user, amount = 1) {
+        const userData = this.getUserData();
+        if (userData[user]) {
+            userData[user].tickets = (userData[user].tickets || 0) + amount;
+            this.set(this.KEYS.USER_DATA, userData);
+        }
+        return userData[user]?.tickets || 0;
+    },
+
+    /**
+     * Spend ticket from user
+     * @param {string} user - 'male' or 'female'
+     * @param {number} amount - tickets to spend
+     * @returns {boolean} true if successful
+     */
+    spendTicket(user, amount = 1) {
+        const userData = this.getUserData();
+        if (userData[user] && userData[user].tickets >= amount) {
+            userData[user].tickets -= amount;
+            this.set(this.KEYS.USER_DATA, userData);
+            return true;
+        }
+        return false;
+    },
+
+    /**
+     * Update user profile (name, color)
+     * @param {string} user - 'male' or 'female'
+     * @param {Object} updates - { name?, color? }
+     */
+    updateUserProfile(user, updates) {
+        const userData = this.getUserData();
+        if (userData[user]) {
+            userData[user] = { ...userData[user], ...updates };
+            this.set(this.KEYS.USER_DATA, userData);
+        }
+    },
+
+    /**
+     * Get user color
+     * @param {string} user - optional
+     * @returns {string} hex color
+     */
+    getUserColor(user = null) {
+        const userData = this.getUserData();
+        const targetUser = user || this.getActiveUser();
+        return userData[targetUser]?.color || (targetUser === 'male' ? '#6ea8fe' : '#f8a5c2');
+    },
+
+    /**
+     * Get all bets
+     * @returns {Array}
+     */
+    getBets() {
+        return this.get(this.KEYS.BETS) || [];
+    },
+
+    /**
+     * Add a new bet/prediction
+     * @param {Object} bet - { movieId, movieType, movieTitle, user (1|2), prediction, revealed }
+     */
+    addBet(bet) {
+        const bets = this.getBets();
+        bet.id = `bet_${Date.now()}`;
+        bet.createdAt = Date.now();
+        bet.revealed = false;
+        bets.push(bet);
+        this.set(this.KEYS.BETS, bets);
+        return bet;
+    },
+
+    /**
+     * Get bets for a specific movie
+     * @param {string} movieId
+     * @param {string} movieType
+     * @returns {Array}
+     */
+    getMovieBets(movieId, movieType) {
+        const bets = this.getBets();
+        return bets.filter(b => b.movieId === movieId && b.movieType === movieType);
+    },
+
+    /**
+     * Reveal a bet
+     * @param {string} betId
+     */
+    revealBet(betId) {
+        const bets = this.getBets();
+        const bet = bets.find(b => b.id === betId);
+        if (bet) {
+            bet.revealed = true;
+            bet.revealedAt = Date.now();
+            this.set(this.KEYS.BETS, bets);
+        }
+        return bet;
+    },
+
+    /**
+     * Reveal all bets for a movie
+     * @param {string} movieId
+     * @param {string} movieType
+     */
+    revealAllMovieBets(movieId, movieType) {
+        const bets = this.getBets();
+        let revealed = 0;
+        bets.forEach(b => {
+            if (b.movieId === movieId && b.movieType === movieType && !b.revealed) {
+                b.revealed = true;
+                b.revealedAt = Date.now();
+                revealed++;
+            }
+        });
+        this.set(this.KEYS.BETS, bets);
+        return revealed;
+    },
+
+    // Predefined challenges
+    CHALLENGES_DATA: {
+        'marvel-mcu': {
+            id: 'marvel-mcu',
+            name: 'Marvel MCU',
+            icon: '🦸',
+            description: 'Все фильмы киновселенной Marvel',
+            movies: [
+                { tmdbId: '1726', title: 'Iron Man' },
+                { tmdbId: '10138', title: 'Iron Man 2' },
+                { tmdbId: '10195', title: 'Thor' },
+                { tmdbId: '1771', title: 'Captain America' },
+                { tmdbId: '24428', title: 'Avengers' },
+                { tmdbId: '68721', title: 'Iron Man 3' },
+                { tmdbId: '76338', title: 'Thor: Dark World' },
+                { tmdbId: '100402', title: 'Captain America: Winter Soldier' },
+                { tmdbId: '118340', title: 'Guardians of the Galaxy' },
+                { tmdbId: '99861', title: 'Avengers: Age of Ultron' }
+            ]
+        },
+        'miyazaki': {
+            id: 'miyazaki',
+            name: 'Хаяо Миядзаки',
+            icon: '🎨',
+            description: 'Шедевры Studio Ghibli',
+            movies: [
+                { tmdbId: '129', title: 'Spirited Away' },
+                { tmdbId: '128', title: 'Princess Mononoke' },
+                { tmdbId: '4935', title: 'Howl\'s Moving Castle' },
+                { tmdbId: '12477', title: 'Grave of the Fireflies' },
+                { tmdbId: '81', title: 'Nausicaä' },
+                { tmdbId: '8392', title: 'My Neighbor Totoro' },
+                { tmdbId: '16859', title: 'Ponyo' },
+                { tmdbId: '149870', title: 'The Wind Rises' }
+            ]
+        },
+        'top-imdb': {
+            id: 'top-imdb',
+            name: 'Top-20 IMDb',
+            icon: '🏆',
+            description: 'Лучшие фильмы всех времён',
+            movies: [
+                { tmdbId: '278', title: 'The Shawshank Redemption' },
+                { tmdbId: '238', title: 'The Godfather' },
+                { tmdbId: '155', title: 'The Dark Knight' },
+                { tmdbId: '240', title: 'The Godfather Part II' },
+                { tmdbId: '424', title: '12 Angry Men' },
+                { tmdbId: '389', title: '12 Years a Slave' },
+                { tmdbId: '19404', title: 'Dilwale Dulhania' },
+                { tmdbId: '497', title: 'The Green Mile' },
+                { tmdbId: '13', title: 'Forrest Gump' },
+                { tmdbId: '680', title: 'Pulp Fiction' }
+            ]
+        }
+    },
+
+    /**
+     * Get user's challenge progress
+     * @returns {Object} Challenge progress by id
+     */
+    getChallenges() {
+        return this.get(this.KEYS.CHALLENGES) || {};
+    },
+
+    /**
+     * Start/join a challenge
+     * @param {string} challengeId
+     */
+    startChallenge(challengeId) {
+        const challenges = this.getChallenges();
+        if (!challenges[challengeId]) {
+            challenges[challengeId] = {
+                startedAt: Date.now(),
+                completed: []
+            };
+            this.set(this.KEYS.CHALLENGES, challenges);
+        }
+        return challenges[challengeId];
+    },
+
+    /**
+     * Mark a movie as completed in a challenge
+     * @param {string} challengeId
+     * @param {string} tmdbId
+     */
+    markChallengeMovie(challengeId, tmdbId) {
+        const challenges = this.getChallenges();
+        if (challenges[challengeId] && !challenges[challengeId].completed.includes(tmdbId)) {
+            challenges[challengeId].completed.push(tmdbId);
+            this.set(this.KEYS.CHALLENGES, challenges);
+        }
+    },
+
+    /**
+     * Get challenge progress percentage
+     * @param {string} challengeId
+     * @returns {number}
+     */
+    getChallengeProgress(challengeId) {
+        const challenges = this.getChallenges();
+        const challengeData = this.CHALLENGES_DATA[challengeId];
+        if (!challenges[challengeId] || !challengeData) return 0;
+
+        const total = challengeData.movies.length;
+        const completed = challenges[challengeId].completed.length;
+        return Math.round((completed / total) * 100);
     },
 
     /**
@@ -128,9 +466,43 @@ const Storage = {
         movie.currentEpisode = movie.currentEpisode || 0;
         movie.totalEpisodes = movie.totalEpisodes || 0;
 
+        // Track who added (for Wishlist Sync)
+        const activeUser = this.getActiveUser();
+        if (!movie.addedBy) {
+            movie.addedBy = activeUser;
+        } else if (movie.addedBy !== activeUser && movie.addedBy !== 'both') {
+            // Second user also wants this movie = MATCH!
+            movie.addedBy = 'both';
+        }
+
         list.unshift(movie);
         this.set(listKey, list);
         return true;
+    },
+
+    /**
+     * Mark movie as wanted by current user (for Wishlist Sync MATCH)
+     * @param {string} movieId
+     * @param {string} movieType
+     */
+    markWanted(movieId, movieType) {
+        const list = this.getList(this.KEYS.WISHLIST);
+        const idx = list.findIndex(m => m.id === movieId && m.type === movieType);
+
+        if (idx !== -1) {
+            const movie = list[idx];
+            const activeUser = this.getActiveUser();
+
+            if (movie.addedBy !== activeUser && movie.addedBy !== 'both') {
+                movie.addedBy = 'both';
+                // Move to top of list
+                list.splice(idx, 1);
+                list.unshift(movie);
+                this.set(this.KEYS.WISHLIST, list);
+                return true;
+            }
+        }
+        return false;
     },
 
     /**
@@ -143,6 +515,72 @@ const Storage = {
         const list = this.getList(listKey);
         const filtered = list.filter(m => !(m.id === movieId && m.type === type));
         this.set(listKey, filtered);
+    },
+
+    /**
+     * Update movie in list (e.g., add cheatedBy marker)
+     * @param {string} listKey
+     * @param {Object} updatedMovie
+     */
+    updateMovieInList(listKey, updatedMovie) {
+        const list = this.getList(listKey);
+        const idx = list.findIndex(m => m.id === updatedMovie.id && m.type === updatedMovie.type);
+        if (idx !== -1) {
+            list[idx] = { ...list[idx], ...updatedMovie };
+            this.set(listKey, list);
+        }
+    },
+
+    // ============================================
+    // QUOTES SYSTEM
+    // ============================================
+
+    /**
+     * Get all quotes
+     * @returns {Array}
+     */
+    getQuotes() {
+        return this.get(this.KEYS.QUOTES) || [];
+    },
+
+    /**
+     * Add quote for a movie
+     * @param {string} movieId
+     * @param {string} movieType
+     * @param {string} movieTitle
+     * @param {string} text
+     */
+    addQuote(movieId, movieType, movieTitle, text) {
+        const quotes = this.getQuotes();
+        quotes.push({
+            id: `quote_${Date.now()}`,
+            movieId,
+            movieType,
+            movieTitle,
+            text,
+            createdAt: Date.now()
+        });
+        this.set(this.KEYS.QUOTES, quotes);
+    },
+
+    /**
+     * Get quotes for a specific movie
+     * @param {string} movieId
+     * @param {string} movieType
+     * @returns {Array}
+     */
+    getMovieQuotes(movieId, movieType) {
+        return this.getQuotes().filter(q => q.movieId === movieId && q.movieType === movieType);
+    },
+
+    /**
+     * Get random quote for "Quote of the day"
+     * @returns {Object|null}
+     */
+    getRandomQuote() {
+        const quotes = this.getQuotes();
+        if (quotes.length === 0) return null;
+        return quotes[Math.floor(Math.random() * quotes.length)];
     },
 
     /**
