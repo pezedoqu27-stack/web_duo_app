@@ -138,12 +138,59 @@ body {
   align-items: center;
   justify-content: center;
   z-index: var(--z-splash);
-  animation: splashFadeOut 0.5s ease 1.5s forwards;
+  animation: splashFadeOut 0.5s ease 2s forwards;
 }
 
 .splash-content {
   text-align: center;
-  animation: splashPulse 1.5s ease infinite;
+}
+
+.splash-logo-wrapper {
+  display: flex;
+  justify-content: center;
+  font-size: 4rem;
+  font-weight: 700;
+  letter-spacing: -2px;
+}
+
+.splash-logo-left {
+  background: linear-gradient(135deg, var(--accent-light), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: flyFromLeft 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.splash-logo-right {
+  background: linear-gradient(135deg, var(--accent), var(--accent-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: flyFromRight 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes flyFromLeft {
+  0% {
+    opacity: 0;
+    transform: translateX(-100px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes flyFromRight {
+  0% {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .splash-logo {
@@ -3546,4 +3593,361 @@ body.user-female {
   width: 10px;
   height: 10px;
   border-radius: 50%;
+}
+
+/* ========================================
+   Card View Modes
+   ======================================== */
+.view-mode-toggle {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-tertiary);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-md);
+  width: fit-content;
+}
+
+.view-mode-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all var(--transition-fast);
+  color: var(--text-secondary);
+}
+
+.view-mode-btn.active {
+  background: var(--accent);
+  color: var(--bg-primary);
+}
+
+/* Small cards - 6 columns */
+.movies-grid.view-small {
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.movies-grid.view-small .movie-card {
+  transform: scale(0.9);
+}
+
+/* Large cards - 3 columns */
+.movies-grid.view-large {
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-lg);
+}
+
+.movies-grid.view-large .movie-card {
+  transform: scale(1);
+}
+
+/* List view */
+.movies-grid.view-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.movies-grid.view-list .movie-card {
+  flex-direction: row;
+  aspect-ratio: auto;
+  height: 80px;
+}
+
+.movies-grid.view-list .movie-card .poster {
+  width: 60px;
+  height: 80px;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.movies-grid.view-list .movie-card .info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-sm);
+  flex: 1;
+}
+
+.movies-grid.view-list .movie-card .title {
+  font-size: 0.9rem;
+}
+
+.movies-grid.view-list .movie-card .year,
+.movies-grid.view-list .movie-card .rating {
+  font-size: 0.75rem;
+}
+
+/* ========================================
+   Challenge Editor
+   ======================================== */
+.challenges-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+}
+
+.challenges-header h3 {
+  margin: 0;
+}
+
+.btn-add-challenge {
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--bg-primary);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-add-challenge:hover {
+  transform: scale(1.05);
+}
+
+.challenge-modal {
+  max-width: 400px;
+}
+
+.challenge-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin: var(--space-md) 0;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xs);
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--bg-card-hover);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.form-group small {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.challenge-modal-actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+}
+
+/* ========================================
+   Search Pagination
+   ======================================== */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-xs);
+  grid-column: 1 / -1;
+  padding: var(--space-lg) 0;
+}
+
+.page-btn {
+  background: var(--bg-tertiary);
+  border: none;
+  color: var(--text-primary);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.85rem;
+  min-width: 36px;
+  transition: all var(--transition-fast);
+}
+
+.page-btn:hover:not(:disabled) {
+  background: var(--bg-card-hover);
+}
+
+.page-btn.active {
+  background: var(--accent);
+  color: var(--bg-primary);
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ========================================
+   Improved Genre Chart
+   ======================================== */
+.genres-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.genre-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.genre-name {
+  width: 100px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.genre-bar-fill {
+  height: 20px;
+  border-radius: var(--radius-sm);
+  transition: width 0.5s ease;
+  min-width: 4px;
+}
+
+.genre-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  min-width: 30px;
+}
+
+/* ========================================
+   Custom Avatar Upload
+   ======================================== */
+.avatar {
+  position: relative;
+  cursor: pointer;
+}
+
+.avatar-upload {
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  width: 24px;
+  height: 24px;
+  background: var(--accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  border: 2px solid var(--bg-secondary);
+}
+
+.avatar img {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar-hidden-input {
+  display: none;
+}
+
+/* ========================================
+   Detailed Stats Modal
+   ======================================== */
+.stats-detail {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  margin-top: var(--space-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.stats-detail:hover {
+  background: var(--bg-tertiary);
+}
+
+.stats-detail-title {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.stats-detail-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.stats-modal {
+  max-width: 500px;
+}
+
+.stats-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--bg-tertiary);
+}
+
+.stats-row-label {
+  color: var(--text-secondary);
+}
+
+.stats-row-value {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ========================================
+   Calendar Day Improvements
+   ======================================== */
+.vibe-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.day-num {
+  font-weight: 500;
+}
+
+.day-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  margin-top: 2px;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+}
+
+.vibe-day.has-movie {
+  cursor: pointer;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.vibe-day.has-movie:hover {
+  transform: scale(1.15);
+  z-index: 10;
 }

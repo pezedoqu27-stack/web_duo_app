@@ -23,7 +23,10 @@
     <!-- Splash Screen -->
     <div id="splash" class="splash">
         <div class="splash-content">
-            <div class="splash-logo">Duo</div>
+            <div class="splash-logo-wrapper">
+                <span class="splash-logo-left">D</span>
+                <span class="splash-logo-right">uo</span>
+            </div>
             <div class="splash-tagline">Смотрите вместе</div>
         </div>
     </div>
@@ -96,6 +99,15 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- View Mode Toggle -->
+                <div class="view-mode-toggle" id="viewModeToggle">
+                    <button class="view-mode-btn" data-mode="small" title="Маленькие">▪️</button>
+                    <button class="view-mode-btn active" data-mode="medium" title="Средние">◾</button>
+                    <button class="view-mode-btn" data-mode="large" title="Большие">⬛</button>
+                    <button class="view-mode-btn" data-mode="list" title="Список">☰</button>
+                </div>
+
                 <div id="searchResults" class="movies-grid"></div>
 
                 <!-- Quote of the Day Widget -->
@@ -236,12 +248,16 @@
                 <div class="profile-content">
                     <div class="profile-avatars">
                         <div class="avatar" id="avatar1">
-                            <span>👤</span>
+                            <span id="avatar1Img">👤</span>
+                            <input type="file" accept="image/*" class="avatar-hidden-input" id="avatar1Input">
+                            <div class="avatar-upload">✏️</div>
                             <input type="text" class="avatar-name" id="name1" placeholder="Имя 1" maxlength="12">
                         </div>
                         <div class="avatar-heart">💜</div>
                         <div class="avatar" id="avatar2">
-                            <span>👤</span>
+                            <span id="avatar2Img">👤</span>
+                            <input type="file" accept="image/*" class="avatar-hidden-input" id="avatar2Input">
+                            <div class="avatar-upload">✏️</div>
                             <input type="text" class="avatar-name" id="name2" placeholder="Имя 2" maxlength="12">
                         </div>
                     </div>
@@ -277,6 +293,12 @@
                         </div>
                     </div>
 
+                    <!-- Clickable detailed stats -->
+                    <div class="stats-detail" id="openDetailedStats">
+                        <div class="stats-detail-title">📊 Подробная статистика</div>
+                        <div class="stats-detail-subtitle">Нажмите для просмотра по жанрам, годам и типам</div>
+                    </div>
+
                     <div class="stats-section">
                         <h3>Кто добрее?</h3>
                         <div class="kindness-bar">
@@ -302,7 +324,10 @@
 
                     <!-- Challenges Section -->
                     <div class="stats-section challenges-section">
-                        <h3>🎯 Челленджи</h3>
+                        <div class="challenges-header">
+                            <h3>🎯 Челленджи</h3>
+                            <button class="btn-add-challenge" id="addChallengeBtn">+ Создать</button>
+                        </div>
                         <div class="challenges-grid" id="challengesGrid">
                             <!-- Filled by JS -->
                         </div>
@@ -533,6 +558,37 @@
         </div>
     </div>
 
+    <!-- Challenge Edit Modal -->
+    <div id="challengeModal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content challenge-modal">
+            <h3 id="challengeModalTitle">🎯 Новый челлендж</h3>
+
+            <div class="challenge-form">
+                <div class="form-group">
+                    <label>Название</label>
+                    <input type="text" id="challengeName" placeholder="Например: Марафон Нолана" maxlength="40">
+                </div>
+
+                <div class="form-group">
+                    <label>Эмодзи</label>
+                    <input type="text" id="challengeEmoji" placeholder="🎬" maxlength="2" style="width: 60px;">
+                </div>
+
+                <div class="form-group">
+                    <label>TMDB ID фильмов (через запятую)</label>
+                    <textarea id="challengeMovies" placeholder="155, 27205, 49026, 157336" rows="3"></textarea>
+                    <small>Найдите ID на themoviedb.org</small>
+                </div>
+            </div>
+
+            <div class="challenge-modal-actions">
+                <button class="btn-secondary" id="cancelChallenge">Отмена</button>
+                <button class="btn-primary" id="saveChallenge">💾 Сохранить</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Randomizer Modal -->
     <div id="randomizerModal" class="modal">
         <div class="modal-overlay"></div>
@@ -560,6 +616,33 @@
             </div>
             <button class="btn-primary btn-spin" id="spinBtn">Крутить!</button>
             <button class="modal-close-text" id="closeRandomizer">Отмена</button>
+        </div>
+    </div>
+
+    <!-- Detailed Stats Modal -->
+    <div id="statsModal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content stats-modal">
+            <h3>📊 Подробная статистика</h3>
+
+            <div class="stats-breakdown" id="statsBreakdown">
+                <div class="stats-section-modal">
+                    <h4>По типам</h4>
+                    <div id="statsByType"></div>
+                </div>
+
+                <div class="stats-section-modal">
+                    <h4>По жанрам</h4>
+                    <div id="statsByGenre"></div>
+                </div>
+
+                <div class="stats-section-modal">
+                    <h4>Время на опыт</h4>
+                    <div id="statsByTime"></div>
+                </div>
+            </div>
+
+            <button class="btn-secondary" id="closeStatsModal">Закрыть</button>
         </div>
     </div>
 
@@ -665,52 +748,43 @@
                         <input type="number" id="yearTo" min="1900" max="2025" placeholder="2025">
                     </div>
                 </div>
-            </div>
 
-            <div class="filter-section">
-                <h4>Минимальный рейтинг</h4>
-                <div class="rating-filter">
-                    <input type="range" id="minRating" min="0" max="9" step="1" value="0" class="slider">
-                    <span class="rating-display" id="minRatingDisplay">Любой</span>
+                <div class="filter-section">
+                    <h4>Исключить страны</h4>
+                    <div class="country-exclude" id="excludeCountries">
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="RU" id="excludeRU">
+                            <span>Россия</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="IN" id="excludeIN">
+                            <span>Индия</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" value="TR" id="excludeTR">
+                            <span>Турция</span>
+                        </label>
+                    </div>
                 </div>
-            </div>
 
-            <div class="filter-section">
-                <h4>Исключить страны</h4>
-                <div class="country-exclude" id="excludeCountries">
-                    <label class="checkbox-label">
-                        <input type="checkbox" value="RU" id="excludeRU">
-                        <span>Россия</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" value="IN" id="excludeIN">
-                        <span>Индия</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" value="TR" id="excludeTR">
-                        <span>Турция</span>
-                    </label>
+                <div class="filter-actions">
+                    <button class="btn-secondary" id="resetFilters">Сбросить</button>
+                    <button class="btn-primary" id="applyFilters">Применить</button>
                 </div>
-            </div>
 
-            <div class="filter-actions">
-                <button class="btn-secondary" id="resetFilters">Сбросить</button>
-                <button class="btn-primary" id="applyFilters">Применить</button>
+                <button class="modal-close-text" id="closeFilters">Отмена</button>
             </div>
-
-            <button class="modal-close-text" id="closeFilters">Отмена</button>
         </div>
-    </div>
 
-    <!-- Toast Notification -->
-    <div id="toast" class="toast"></div>
+        <!-- Toast Notification -->
+        <div id="toast" class="toast"></div>
 
-    <script src="js/storage.js"></script>
-    <script src="js/api.js"></script>
-    <script src="js/components.js"></script>
-    <script src="js/colorThief.js"></script>
-    <script src="js/ai.js"></script>
-    <script src="js/app.js"></script>
+        <script src="js/storage.js"></script>
+        <script src="js/api.js"></script>
+        <script src="js/components.js"></script>
+        <script src="js/colorThief.js"></script>
+        <script src="js/ai.js"></script>
+        <script src="js/app.js"></script>
 </body>
 
 </html>

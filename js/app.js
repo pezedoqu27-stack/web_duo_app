@@ -38,6 +38,8 @@ const App = {
         this.setupDateNight();
         this.setupQuoteWidget();
         this.setupVibeCalendar();
+        this.setupDurationFilter();
+        this.setupViewModes();
 
         // Apply user theme
         this.applyUserTheme();
@@ -189,24 +191,95 @@ const App = {
             console.error('Search error:', error);
         }
 
-        // Render results
+        // Store results for pagination
+        this.searchResults = results;
+        this.searchPage = 1;
+        this.itemsPerPage = 12;
+
+        this.renderSearchPage();
+    },
+
+    // Pagination state
+    searchResults: [],
+    searchPage: 1,
+    itemsPerPage: 12,
+
+    /**
+     * Render current page of search results
+     */
+    renderSearchPage() {
+        const resultsContainer = document.getElementById('searchResults');
         resultsContainer.innerHTML = '';
 
-        if (results.length === 0) {
+        if (this.searchResults.length === 0) {
             resultsContainer.innerHTML = `
-        <div class="empty-state">
-          <p>Ничего не найдено</p>
-          <span>Попробуйте изменить запрос или проверьте API ключ</span>
-        </div>
-      `;
+                <div class="empty-state">
+                    <p>Ничего не найдено</p>
+                    <span>Попробуйте изменить запрос или проверьте API ключ</span>
+                </div>
+            `;
             return;
         }
 
-        results.forEach(movie => {
+        // Calculate pagination
+        const totalPages = Math.ceil(this.searchResults.length / this.itemsPerPage);
+        const startIdx = (this.searchPage - 1) * this.itemsPerPage;
+        const endIdx = startIdx + this.itemsPerPage;
+        const pageResults = this.searchResults.slice(startIdx, endIdx);
+
+        // Render movie cards
+        pageResults.forEach(movie => {
             resultsContainer.appendChild(
                 Components.createMovieCard(movie, (m) => this.openMovieDetail(m))
             );
         });
+
+        // Add pagination controls if needed
+        if (totalPages > 1) {
+            const paginationHtml = `
+                <div class="pagination">
+                    <button class="page-btn" data-page="prev" ${this.searchPage === 1 ? 'disabled' : ''}>←</button>
+                    ${this.generatePageNumbers(totalPages)}
+                    <button class="page-btn" data-page="next" ${this.searchPage === totalPages ? 'disabled' : ''}>→</button>
+                </div>
+            `;
+            resultsContainer.insertAdjacentHTML('beforeend', paginationHtml);
+
+            // Add click handlers
+            resultsContainer.querySelectorAll('.page-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const page = btn.dataset.page;
+                    if (page === 'prev' && this.searchPage > 1) {
+                        this.searchPage--;
+                    } else if (page === 'next' && this.searchPage < totalPages) {
+                        this.searchPage++;
+                    } else if (!isNaN(page)) {
+                        this.searchPage = parseInt(page);
+                    }
+                    this.renderSearchPage();
+                    resultsContainer.scrollIntoView({ behavior: 'smooth' });
+                });
+            });
+        }
+    },
+
+    /**
+     * Generate page number buttons
+     */
+    generatePageNumbers(totalPages) {
+        let html = '';
+        const maxVisible = 5;
+        let start = Math.max(1, this.searchPage - 2);
+        let end = Math.min(totalPages, start + maxVisible - 1);
+
+        if (end - start < maxVisible - 1) {
+            start = Math.max(1, end - maxVisible + 1);
+        }
+
+        for (let i = start; i <= end; i++) {
+            html += `<button class="page-btn ${i === this.searchPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+        }
+        return html;
     },
     /**
    * Load trending content
@@ -1061,28 +1134,20 @@ const App = {
         const closeBtn = document.getElementById('closeFilters');
         const applyBtn = document.getElementById('applyFilters');
         const resetBtn = document.getElementById('resetFilters');
-        const minRatingSlider = document.getElementById('minRating');
-        const minRatingDisplay = document.getElementById('minRatingDisplay');
 
         // Open filters modal
-        advancedBtn.addEventListener('click', async () => {
+        advancedBtn?.addEventListener('click', async () => {
             await this.loadGenresForFilter();
             Components.toggleModal('filtersModal', true);
         });
 
         // Close modal
-        closeBtn.addEventListener('click', () => {
+        closeBtn?.addEventListener('click', () => {
             Components.toggleModal('filtersModal', false);
         });
 
-        document.querySelector('#filtersModal .modal-overlay').addEventListener('click', () => {
+        document.querySelector('#filtersModal .modal-overlay')?.addEventListener('click', () => {
             Components.toggleModal('filtersModal', false);
-        });
-
-        // Rating slider
-        minRatingSlider.addEventListener('input', () => {
-            const val = parseInt(minRatingSlider.value);
-            minRatingDisplay.textContent = val === 0 ? 'Любой' : `${val}+`;
         });
 
         // Apply filters
@@ -2030,14 +2095,269 @@ const App = {
                 classes += ' today';
             }
 
-            html += `<div class="${classes}" style="${style}" title="${movie?.title || ''}">${day}</div>`;
+            html += `<div class="${classes}" style="${style}" data-day="${day}" title="${movie?.title || ''}">
+                <span class="day-num">${day}</span>
+                ${movie ? '<span class="day-dot"></span>' : ''}
+            </div>`;
         }
 
         grid.innerHTML = html;
+
+        // Add click handlers for days with movies
+        grid.querySelectorAll('.vibe-day.has-movie').forEach(dayEl => {
+            dayEl.addEventListener('click', () => {
+                const dayNum = parseInt(dayEl.dataset.day);
+                const movie = moviesByDay[dayNum];
+                if (movie) {
+                    this.showDayMovie(movie);
+                }
+            });
+        });
+    },
+
+    /**
+     * Show movie details for a calendar day
+     */
+    showDayMovie(movie) {
+        const rating1 = movie.rating1 ? `⭐ ${movie.rating1}` : '';
+        const rating2 = movie.rating2 ? `⭐ ${movie.rating2}` : '';
+        const ratings = [rating1, rating2].filter(r => r).join(' / ') || 'Без оценок';
+
+        Components.showToast(`🎬 ${movie.title}\n${ratings}`, 'info', 4000);
+    },
+
+    // ============================================
+    // VIEW MODES
+    // ============================================
+    currentViewMode: 'medium',
+
+    /**
+     * Setup view mode toggle for cards
+     */
+    setupViewModes() {
+        const toggle = document.getElementById('viewModeToggle');
+        if (!toggle) return;
+
+        toggle.addEventListener('click', (e) => {
+            const btn = e.target.closest('.view-mode-btn');
+            if (!btn) return;
+
+            const mode = btn.dataset.mode;
+            this.currentViewMode = mode;
+
+            // Update active button
+            toggle.querySelectorAll('.view-mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Update grid classes
+            const grids = document.querySelectorAll('.movies-grid');
+            grids.forEach(grid => {
+                grid.classList.remove('view-small', 'view-medium', 'view-large', 'view-list');
+                grid.classList.add(`view-${mode}`);
+            });
+        });
     }
 };
 
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     App.init();
+});
+
+// ====================================
+// AVATAR UPLOAD SYSTEM
+// ====================================
+App.setupAvatars = function () {
+    const avatar1 = document.getElementById('avatar1');
+    const avatar2 = document.getElementById('avatar2');
+    const input1 = document.getElementById('avatar1Input');
+    const input2 = document.getElementById('avatar2Input');
+
+    // Load saved avatars
+    this.loadAvatars();
+
+    // Click handler for avatar 1
+    avatar1?.addEventListener('click', (e) => {
+        if (!e.target.closest('.avatar-name')) {
+            input1?.click();
+        }
+    });
+
+    // Click handler for avatar 2
+    avatar2?.addEventListener('click', (e) => {
+        if (!e.target.closest('.avatar-name')) {
+            input2?.click();
+        }
+    });
+
+    // File change handlers
+    input1?.addEventListener('change', (e) => this.handleAvatarUpload(e, 'avatar1'));
+    input2?.addEventListener('change', (e) => this.handleAvatarUpload(e, 'avatar2'));
+};
+
+App.handleAvatarUpload = function (event, avatarId) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const imgData = e.target.result;
+        localStorage.setItem(`duo_${avatarId}`, imgData);
+        this.loadAvatars();
+        Components.showToast('Аватар обновлён!', 'success');
+    };
+    reader.readAsDataURL(file);
+};
+
+App.loadAvatars = function () {
+    const avatar1Img = document.getElementById('avatar1Img');
+    const avatar2Img = document.getElementById('avatar2Img');
+    const saved1 = localStorage.getItem('duo_avatar1');
+    const saved2 = localStorage.getItem('duo_avatar2');
+
+    if (saved1 && avatar1Img) {
+        avatar1Img.innerHTML = `<img src="${saved1}" alt="Avatar">`;
+    }
+    if (saved2 && avatar2Img) {
+        avatar2Img.innerHTML = `<img src="${saved2}" alt="Avatar">`;
+    }
+};
+
+// ====================================
+// DETAILED STATS MODAL
+// ====================================
+App.setupDetailedStats = function () {
+    const openBtn = document.getElementById('openDetailedStats');
+    const closeBtn = document.getElementById('closeStatsModal');
+    const overlay = document.querySelector('#statsModal .modal-overlay');
+
+    openBtn?.addEventListener('click', () => this.openDetailedStats());
+    closeBtn?.addEventListener('click', () => Components.toggleModal('statsModal', false));
+    overlay?.addEventListener('click', () => Components.toggleModal('statsModal', false));
+};
+
+App.openDetailedStats = function () {
+    const history = Storage.getList(Storage.KEYS.HISTORY);
+
+    // By type
+    const byType = { movie: 0, tv: 0, anime: 0 };
+    history.forEach(m => byType[m.type] = (byType[m.type] || 0) + 1);
+
+    document.getElementById('statsByType').innerHTML = `
+        <div class="stats-row"><span class="stats-row-label">Фильмы</span><span class="stats-row-value">${byType.movie || 0}</span></div>
+        <div class="stats-row"><span class="stats-row-label">Сериалы</span><span class="stats-row-value">${byType.tv || 0}</span></div>
+        <div class="stats-row"><span class="stats-row-label">Аниме</span><span class="stats-row-value">${byType.anime || 0}</span></div>
+    `;
+
+    // By genre
+    const genres = {};
+    history.forEach(m => {
+        (m.genres || []).forEach(g => genres[g] = (genres[g] || 0) + 1);
+    });
+    const sortedGenres = Object.entries(genres).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    document.getElementById('statsByGenre').innerHTML = sortedGenres.map(([name, count]) =>
+        `<div class="stats-row"><span class="stats-row-label">${name}</span><span class="stats-row-value">${count}</span></div>`
+    ).join('') || '<p class="empty-hint">Нет данных</p>';
+
+    // Time stats
+    const totalMinutes = history.reduce((sum, m) => sum + (m.runtime || 90), 0);
+    const hours = Math.floor(totalMinutes / 60);
+    const days = Math.floor(hours / 24);
+
+    document.getElementById('statsByTime').innerHTML = `
+        <div class="stats-row"><span class="stats-row-label">Всего минут</span><span class="stats-row-value">${totalMinutes}</span></div>
+        <div class="stats-row"><span class="stats-row-label">Всего часов</span><span class="stats-row-value">${hours}</span></div>
+        <div class="stats-row"><span class="stats-row-label">Всего дней</span><span class="stats-row-value">${days}</span></div>
+    `;
+
+    Components.toggleModal('statsModal', true);
+};
+
+// ====================================
+// CHALLENGE EDITOR
+// ====================================
+App.setupChallengeEditor = function () {
+    const addBtn = document.getElementById('addChallengeBtn');
+    const saveBtn = document.getElementById('saveChallenge');
+    const cancelBtn = document.getElementById('cancelChallenge');
+    const overlay = document.querySelector('#challengeModal .modal-overlay');
+
+    addBtn?.addEventListener('click', () => this.openChallengeEditor());
+    saveBtn?.addEventListener('click', () => this.saveChallenge());
+    cancelBtn?.addEventListener('click', () => Components.toggleModal('challengeModal', false));
+    overlay?.addEventListener('click', () => Components.toggleModal('challengeModal', false));
+};
+
+App.editingChallengeId = null;
+
+App.openChallengeEditor = function (challenge = null) {
+    this.editingChallengeId = challenge?.id || null;
+
+    const title = document.getElementById('challengeModalTitle');
+    const nameInput = document.getElementById('challengeName');
+    const emojiInput = document.getElementById('challengeEmoji');
+    const moviesInput = document.getElementById('challengeMovies');
+
+    if (challenge) {
+        title.textContent = '✏️ Редактировать челлендж';
+        nameInput.value = challenge.name || '';
+        emojiInput.value = challenge.icon || '🎬';
+        moviesInput.value = (challenge.movieIds || []).join(', ');
+    } else {
+        title.textContent = '🎯 Новый челлендж';
+        nameInput.value = '';
+        emojiInput.value = '🎬';
+        moviesInput.value = '';
+    }
+
+    Components.toggleModal('challengeModal', true);
+};
+
+App.saveChallenge = function () {
+    const name = document.getElementById('challengeName').value.trim();
+    const emoji = document.getElementById('challengeEmoji').value.trim() || '🎬';
+    const moviesStr = document.getElementById('challengeMovies').value.trim();
+
+    if (!name) {
+        Components.showToast('Введите название', 'error');
+        return;
+    }
+
+    const movieIds = moviesStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+
+    const challenge = {
+        id: this.editingChallengeId || `custom_${Date.now()}`,
+        name: name,
+        icon: emoji,
+        movieIds: movieIds,
+        progress: 0,
+        isCustom: true
+    };
+
+    // Save to storage
+    let challenges = JSON.parse(localStorage.getItem('duo_custom_challenges') || '[]');
+    const existingIdx = challenges.findIndex(c => c.id === challenge.id);
+
+    if (existingIdx >= 0) {
+        challenges[existingIdx] = challenge;
+    } else {
+        challenges.push(challenge);
+    }
+
+    localStorage.setItem('duo_custom_challenges', JSON.stringify(challenges));
+
+    Components.showToast('✅ Челлендж сохранён!', 'success');
+    Components.toggleModal('challengeModal', false);
+
+    // Refresh challenges display
+    if (typeof this.renderChallenges === 'function') {
+        this.renderChallenges();
+    }
+};
+
+// Init challenge editor
+document.addEventListener('DOMContentLoaded', () => {
+    App.setupAvatars();
+    App.setupDetailedStats();
+    App.setupChallengeEditor();
 });
