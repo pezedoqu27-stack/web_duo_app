@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f0f0f">
+    <meta name="description" content="Дуо — приложение для совместного выбора фильмов">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Дуо — Смотрите вместе</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div id="splash" class="splash">
+        <div class="splash-content">
+            <div class="splash-logo">Дуо</div>
+            <div class="splash-tagline">Смотрите вместе</div>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="app" class="app hidden">
+        <!-- Header -->
+        <header class="header">
+            <h1 class="logo">Дуо</h1>
+            <button class="btn-icon" id="matcherBtn" title="Кино-Тиндер">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+            </button>
+        </header>
+
+        <!-- Sections Container -->
+        <main class="main-content">
+            <!-- Search Section -->
+            <section id="search-section" class="section active">
+                <div class="section-header">
+                    <h2>Поиск</h2>
+                </div>
+                <div class="search-container">
+                    <div class="search-box">
+                        <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="m21 21-4.35-4.35"/>
+                        </svg>
+                        <input type="text" id="searchInput" class="search-input" placeholder="Фильм, сериал или аниме...">
+                        <button class="search-clear hidden" id="searchClear">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 6 6 18M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="search-filters">
+                        <button class="filter-btn active" data-type="all">Всё</button>
+                        <button class="filter-btn" data-type="movie">Фильмы</button>
+                        <button class="filter-btn" data-type="tv">Сериалы</button>
+                        <button class="filter-btn" data-type="anime">Аниме</button>
+                    </div>
+                </div>
+                <div id="searchResults" class="movies-grid"></div>
+                <div id="trendingSection" class="trending-section">
+                    <h3 class="subsection-title">Сейчас в тренде</h3>
+                    <div id="trendingMovies" class="movies-grid"></div>
+                </div>
+            </section>
+
+            <!-- Wishlist Section -->
+            <section id="wishlist-section" class="section">
+                <div class="section-header">
+                    <h2>Буду смотреть</h2>
+                    <button class="btn-randomizer" id="randomizerBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                            <circle cx="12" cy="12" r="2"/>
+                        </svg>
+                        Мне повезёт
+                    </button>
+                </div>
+                <div id="wishlistMovies" class="movies-grid"></div>
+                <div class="empty-state" id="wishlistEmpty">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <p>Здесь пока пусто</p>
+                    <span>Добавляйте фильмы через поиск</span>
+                </div>
+            </section>
+
+            <!-- Watching Section -->
+            <section id="watching-section" class="section">
+                <div class="section-header">
+                    <h2>Смотрим сейчас</h2>
+                </div>
+                <div id="watchingMovies" class="movies-list"></div>
+                <div class="empty-state" id="watchingEmpty">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                        <rect x="2" y="7" width="20" height="15" rx="2" ry="2"/>
+                        <polyline points="17 2 12 7 7 2"/>
+                    </svg>
+                    <p>Ничего не смотрим</p>
+                    <span>Перенесите что-нибудь из «Буду смотреть»</span>
+                </div>
+            </section>
+
+            <!-- History Section -->
+            <section id="history-section" class="section">
+                <div class="section-header">
+                    <h2>Просмотрено</h2>
+                </div>
+                <div id="historyMovies" class="movies-list"></div>
+                <div class="empty-state" id="historyEmpty">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    <p>История пуста</p>
+                    <span>Здесь появятся просмотренные фильмы</span>
+                </div>
+            </section>
+
+            <!-- Profile Section -->
+            <section id="profile-section" class="section">
+                <div class="section-header">
+                    <h2>Профиль</h2>
+                </div>
+                <div class="profile-content">
+                    <div class="profile-avatars">
+                        <div class="avatar" id="avatar1">
+                            <span>👤</span>
+                            <input type="text" class="avatar-name" id="name1" placeholder="Имя 1" maxlength="12">
+                        </div>
+                        <div class="avatar-heart">💜</div>
+                        <div class="avatar" id="avatar2">
+                            <span>👤</span>
+                            <input type="text" class="avatar-name" id="name2" placeholder="Имя 2" maxlength="12">
+                        </div>
+                    </div>
+                    
+                    <div class="stats-cards">
+                        <div class="stat-card">
+                            <div class="stat-value" id="totalWatched">0</div>
+                            <div class="stat-label">Просмотрено</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="totalHours">0ч</div>
+                            <div class="stat-label">Часов вместе</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="avgRating">—</div>
+                            <div class="stat-label">Средний балл</div>
+                        </div>
+                    </div>
+
+                    <div class="stats-section">
+                        <h3>Кто добрее?</h3>
+                        <div class="kindness-bar">
+                            <div class="kindness-fill" id="kindnessBar"></div>
+                        </div>
+                        <div class="kindness-labels">
+                            <span id="kindnessLabel1">—</span>
+                            <span id="kindnessLabel2">—</span>
+                        </div>
+                    </div>
+
+                    <div class="stats-section">
+                        <h3>Любимые жанры</h3>
+                        <div id="genresChart" class="genres-chart"></div>
+                    </div>
+
+                    <div class="stats-section">
+                        <h3>Фильм года</h3>
+                        <div id="movieOfYear" class="movie-of-year">
+                            <p class="empty-hint">Посмотрите больше фильмов</p>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>Настройки</h3>
+                        <div class="setting-item">
+                            <span>API ключ TMDB</span>
+                            <input type="password" id="apiKeyInput" class="api-key-input" placeholder="Введите ключ">
+                            <button class="btn-small" id="saveApiKey">Сохранить</button>
+                        </div>
+                        <a href="https://www.themoviedb.org/settings/api" target="_blank" class="api-link">
+                            Получить бесплатный ключ →
+                        </a>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-section="search">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                </svg>
+                <span>Поиск</span>
+            </button>
+            <button class="nav-btn" data-section="wishlist">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span>Вишлист</span>
+            </button>
+            <button class="nav-btn" data-section="watching">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="7" width="20" height="15" rx="2" ry="2"/>
+                    <polyline points="17 2 12 7 7 2"/>
+                </svg>
+                <span>Смотрим</span>
+            </button>
+            <button class="nav-btn" data-section="history">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <span>История</span>
+            </button>
+            <button class="nav-btn" data-section="profile">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                </svg>
+                <span>Профиль</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Movie Detail Modal -->
+    <div id="movieModal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content movie-detail">
+            <button class="modal-close" id="closeMovieModal">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6 6 18M6 6l12 12"/>
+                </svg>
+            </button>
+            <div class="movie-backdrop" id="movieBackdrop"></div>
+            <div class="movie-info">
+                <img class="movie-poster-large" id="moviePoster" src="" alt="">
+                <div class="movie-meta">
+                    <h2 id="movieTitle"></h2>
+                    <p class="movie-year" id="movieYear"></p>
+                    <div class="movie-genres" id="movieGenres"></div>
+                    <p class="movie-overview" id="movieOverview"></p>
+                    <p class="movie-runtime" id="movieRuntime"></p>
+                </div>
+            </div>
+            <div class="movie-tags" id="movieTags">
+                <h4>Теги настроения</h4>
+                <div class="tags-container">
+                    <button class="tag-btn" data-tag="ПодВинишко">#ПодВинишко</button>
+                    <button class="tag-btn" data-tag="Поплакать">#Поплакать</button>
+                    <button class="tag-btn" data-tag="ФономДляУжина">#ФономДляУжина</button>
+                    <button class="tag-btn" data-tag="Мозговынос">#Мозговынос</button>
+                    <button class="tag-btn" data-tag="Романтика">#Романтика</button>
+                    <button class="tag-btn" data-tag="Напряжение">#Напряжение</button>
+                </div>
+                <input type="text" class="custom-tag-input" id="customTagInput" placeholder="+ Свой тег">
+            </div>
+            <div class="movie-notes">
+                <h4>Заметки</h4>
+                <textarea id="movieNotes" placeholder="Где смотрели, что ели, какая была погода..."></textarea>
+            </div>
+            <div class="movie-actions" id="movieActions"></div>
+        </div>
+    </div>
+
+    <!-- Rating Modal -->
+    <div id="ratingModal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content rating-modal">
+            <h3>Ваши оценки</h3>
+            <div class="rating-poster" id="ratingPoster"></div>
+            <h4 id="ratingMovieTitle"></h4>
+            <div class="dual-rating">
+                <div class="rating-slider">
+                    <label id="ratingLabel1">Оценка 1</label>
+                    <input type="range" id="rating1" min="1" max="10" value="7" class="slider">
+                    <span class="rating-value" id="ratingValue1">7</span>
+                </div>
+                <div class="rating-slider">
+                    <label id="ratingLabel2">Оценка 2</label>
+                    <input type="range" id="rating2" min="1" max="10" value="7" class="slider">
+                    <span class="rating-value" id="ratingValue2">7</span>
+                </div>
+            </div>
+            <div class="combined-rating">
+                <span class="combined-label">Ваш общий балл</span>
+                <span class="combined-value" id="combinedRating">7.0</span>
+                <span class="combined-star">★</span>
+            </div>
+            <button class="btn-primary" id="saveRating">Сохранить</button>
+        </div>
+    </div>
+
+    <!-- Randomizer Modal -->
+    <div id="randomizerModal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content randomizer-modal">
+            <h3>🎲 Мне повезёт</h3>
+            <div class="randomizer-filters">
+                <div class="filter-group">
+                    <label>Максимум времени</label>
+                    <div class="time-buttons">
+                        <button class="time-btn active" data-time="0">Любое</button>
+                        <button class="time-btn" data-time="90">1.5 часа</button>
+                        <button class="time-btn" data-time="120">2 часа</button>
+                        <button class="time-btn" data-time="150">2.5 часа</button>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label>Настроение</label>
+                    <div class="mood-buttons" id="randomizerMoods"></div>
+                </div>
+            </div>
+            <div class="randomizer-result" id="randomizerResult">
+                <div class="randomizer-wheel">
+                    <div class="wheel-inner" id="wheelInner"></div>
+                </div>
+            </div>
+            <button class="btn-primary btn-spin" id="spinBtn">Крутить!</button>
+            <button class="modal-close-text" id="closeRandomizer">Отмена</button>
+        </div>
+    </div>
+
+    <!-- Matcher (Cinema Tinder) Modal -->
+    <div id="matcherModal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content matcher-modal">
+            <h3>💜 Кино-Тиндер</h3>
+            <p class="matcher-subtitle">Свайпайте вместе, чтобы найти идеальный фильм</p>
+            <div class="matcher-card-container" id="matcherCards"></div>
+            <div class="matcher-actions">
+                <button class="matcher-btn matcher-no" id="matcherNo">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6 6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+                <button class="matcher-btn matcher-yes" id="matcherYes">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="matcher-match hidden" id="matchCelebration">
+                <div class="confetti"></div>
+                <h2>🎉 Мэтч!</h2>
+                <p>Вы оба хотите это посмотреть!</p>
+                <div id="matchedMovie"></div>
+                <button class="btn-primary" id="watchMatch">Смотрим!</button>
+            </div>
+            <button class="modal-close-text" id="closeMatcher">Закрыть</button>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script src="js/storage.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

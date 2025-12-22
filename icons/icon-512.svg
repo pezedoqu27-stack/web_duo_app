@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0f0f0f"/>
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d4c7e8"/>
+      <stop offset="100%" stop-color="#b8a5d3"/>
+    </linearGradient>
+  </defs>
+  <!-- Two overlapping hearts representing a couple -->
+  <g transform="translate(256, 256) scale(2.5)">
+    <!-- Heart 1 -->
+    <path d="M-35,-15 C-35,-30 -20,-35 -10,-25 L0,-15 L10,-25 C20,-35 35,-30 35,-15 C35,5 0,35 0,35 C0,35 -35,5 -35,-15 Z" 
+          fill="url(#gradient)" 
+          transform="translate(-15, 0) scale(0.9)"
+          opacity="0.8"/>
+    <!-- Heart 2 -->
+    <path d="M-35,-15 C-35,-30 -20,-35 -10,-25 L0,-15 L10,-25 C20,-35 35,-30 35,-15 C35,5 0,35 0,35 C0,35 -35,5 -35,-15 Z" 
+          fill="url(#gradient)" 
+          transform="translate(15, 0) scale(0.9)"/>
+  </g>
+</svg>
