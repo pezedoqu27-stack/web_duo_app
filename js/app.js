@@ -2575,7 +2575,7 @@ App.saveChallenge = function () {
 };
 
 // Open challenge detail view
-App.openChallengeDetail = function (challengeId) {
+App.openChallengeDetail = async function (challengeId) {
     console.log('Opening challenge:', challengeId);
     const challenges = JSON.parse(localStorage.getItem('duo_custom_challenges') || '[]');
     const challenge = challenges.find(c => c.id === challengeId);
@@ -2605,22 +2605,48 @@ App.openChallengeDetail = function (challengeId) {
     document.getElementById('challengeDetailProgress').style.width = `${progress}%`;
     document.getElementById('challengeDetailProgressText').textContent = `${watched.length}/${total} (${progress}%)`;
 
-    // Movie list
+    // Movie list - show loading first
     const listEl = document.getElementById('challengeDetailMovies');
-    listEl.innerHTML = challenge.movieIds.map(id => {
-        const isWatched = watched.includes(id);
+    listEl.innerHTML = '<p class="loading-hint">⏳ Загрузка фильмов...</p>';
+
+    popup.classList.add('active');
+    overlay.classList.add('active');
+
+    // Fetch movie titles from TMDB API
+    const movieData = await Promise.all(
+        challenge.movieIds.map(async (id) => {
+            try {
+                // Try movie first, then TV if that fails
+                const movieDetails = await API.getDetails(id, 'movie');
+                if (movieDetails && movieDetails.title) {
+                    return { id, title: movieDetails.title, poster: movieDetails.poster, year: movieDetails.year };
+                }
+                const tvDetails = await API.getDetails(id, 'tv');
+                if (tvDetails && tvDetails.title) {
+                    return { id, title: tvDetails.title, poster: tvDetails.poster, year: tvDetails.year };
+                }
+                return { id, title: `ID: ${id}`, poster: null, year: null };
+            } catch (e) {
+                console.error('Failed to fetch movie:', id, e);
+                return { id, title: `ID: ${id}`, poster: null, year: null };
+            }
+        })
+    );
+
+    // Render movie list with titles
+    listEl.innerHTML = movieData.map(movie => {
+        const isWatched = watched.includes(movie.id);
+        const yearText = movie.year ? ` (${movie.year})` : '';
         return `
-            <div class="challenge-movie-item ${isWatched ? 'watched' : ''}" data-id="${id}">
-                <span class="challenge-movie-id">#${id}</span>
-                <button class="challenge-movie-toggle" onclick="App.toggleChallengeMovie('${challengeId}', ${id})">
+            <div class="challenge-movie-item ${isWatched ? 'watched' : ''}" data-id="${movie.id}">
+                ${movie.poster ? `<img src="${movie.poster}" alt="${movie.title}" class="challenge-movie-poster">` : ''}
+                <span class="challenge-movie-title">${movie.title}${yearText}</span>
+                <button class="challenge-movie-toggle" onclick="App.toggleChallengeMovie('${challengeId}', ${movie.id})">
                     ${isWatched ? '✅' : '⬜'}
                 </button>
             </div>
         `;
     }).join('') || '<p class="empty-hint">Нет фильмов</p>';
-
-    popup.classList.add('active');
-    overlay.classList.add('active');
 };
 
 App.closeChallengeDetail = function () {

@@ -4439,3 +4439,29 @@ body.user-female {
 .challenge-movie-toggle:hover {
   transform: scale(1.2);
 }
+
+.challenge-movie-poster {
+  width: 40px;
+  height: 60px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.challenge-movie-title {
+  flex: 1;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  margin-left: var(--space-sm);
+}
+
+.challenge-movie-item.watched .challenge-movie-title {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.loading-hint {
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--space-lg);
+}
