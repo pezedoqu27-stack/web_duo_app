@@ -186,17 +186,40 @@ const AI = {
     },
 
     /**
-     * Call Perplexity API
+     * Call Perplexity API with chat history
      * @param {string} question - User question
      * @returns {Promise<Object>}
      */
     async askPerplexity(question) {
         const key = Storage.getPerplexityKey();
 
-        // Add movie context to the question
-        const systemPrompt = `Ты — помощник по фильмам и сериалам, и аниме. Отвечай кратко и по делу. 
-Если спрашивают рекомендации — предлагай конкретные названия с годом выпуска.
-Отвечай на русском языке.`;
+        // System prompt for concise, relevant answers
+        const systemPrompt = `Ты — краткий и полезный помощник по фильмам, сериалам и аниме.
+
+ПРАВИЛА:
+- Отвечай КРАТКО и ПО ДЕЛУ (макс. 2-3 предложения)
+- Рекомендации: название + год + 1 предложение почему
+- Не повторяй вопрос пользователя
+- Формат списков: нумерация 1. 2. 3.
+- Отвечай на русском
+- Запоминай контекст беседы`;
+
+        // Build messages with history
+        const messages = [
+            { role: 'system', content: systemPrompt }
+        ];
+
+        // Add chat history (last 10 messages)
+        const history = this.getChatHistory();
+        history.slice(-10).forEach(msg => {
+            messages.push({
+                role: msg.role,
+                content: msg.content
+            });
+        });
+
+        // Add current question
+        messages.push({ role: 'user', content: question });
 
         try {
             const response = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -207,12 +230,9 @@ const AI = {
                 },
                 body: JSON.stringify({
                     model: 'sonar',
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: question }
-                    ],
-                    max_tokens: 500,
-                    temperature: 0.7
+                    messages: messages,
+                    max_tokens: 400,
+                    temperature: 0.5
                 })
             });
 
@@ -222,13 +242,75 @@ const AI = {
             }
 
             const data = await response.json();
-            return {
-                content: data.choices?.[0]?.message?.content || 'Нет ответа'
-            };
+            const content = data.choices?.[0]?.message?.content || 'Нет ответа';
+
+            // Save to history
+            this.saveChatMessage('user', question);
+            this.saveChatMessage('assistant', content);
+
+            return { content: this.formatResponse(content) };
         } catch (error) {
             console.error('Perplexity API error:', error);
             return { error: error.message };
         }
+    },
+
+    /**
+     * Format AI response for display
+     * @param {string} text - Raw response text
+     * @returns {string} - Formatted HTML
+     */
+    formatResponse(text) {
+        // Clean up response
+        let formatted = text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold
+            .replace(/\*(.*?)\*/g, '<em>$1</em>') // Italic
+            .replace(/`(.*?)`/g, '<code>$1</code>') // Code
+            .replace(/\n/g, '<br>'); // Line breaks
+
+        return formatted;
+    },
+
+    /**
+     * Get chat history from storage
+     * @returns {Array}
+     */
+    getChatHistory() {
+        try {
+            const history = localStorage.getItem('duo_ai_history');
+            return history ? JSON.parse(history) : [];
+        } catch (e) {
+            return [];
+        }
+    },
+
+    /**
+     * Save message to chat history
+     * @param {string} role - 'user' or 'assistant'
+     * @param {string} content - Message content
+     */
+    saveChatMessage(role, content) {
+        const history = this.getChatHistory();
+        history.push({
+            role: role,
+            content: content,
+            timestamp: Date.now()
+        });
+        // Keep only last 50 messages
+        const trimmed = history.slice(-50);
+        localStorage.setItem('duo_ai_history', JSON.stringify(trimmed));
+    },
+
+    /**
+     * Clear chat history
+     */
+    clearChatHistory() {
+        localStorage.removeItem('duo_ai_history');
+        const container = document.getElementById('aiMessages');
+        if (container) {
+            container.innerHTML = '<div class="ai-message ai-assistant">Привет! Я помогу найти фильмы или сериалы. Спрашивай! 🎬</div>';
+        }
+        Components.showToast('История чата очищена', 'info');
     },
 
     /**
@@ -251,6 +333,9 @@ const AI = {
                     <span></span><span></span><span></span>
                 </div>
             `;
+        } else if (type === 'assistant') {
+            // Use innerHTML for formatted responses
+            div.innerHTML = text;
         } else {
             div.textContent = text;
         }

@@ -3969,33 +3969,473 @@ body.user-female {
 /* ========================================
    Calendar Day Improvements
    ======================================== */
+.vibe-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  padding: var(--space-sm);
+}
+
+.vibe-day-header {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: var(--space-xs);
+  text-transform: uppercase;
+}
+
 .vibe-day {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  transition: all var(--transition-fast);
+  min-height: 36px;
+}
+
+.vibe-day.empty {
+  background: transparent;
 }
 
 .day-num {
   font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  z-index: 1;
+}
+
+.vibe-day.today {
+  border: 2px solid var(--accent);
+}
+
+.vibe-day.today .day-num {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Movie indicator - enhanced */
+.vibe-day.has-movie {
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+
+.vibe-day.has-movie::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.vibe-day.has-movie .day-num {
+  color: var(--bg-primary);
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .day-dot {
-  width: 6px;
-  height: 6px;
+  position: absolute;
+  bottom: 3px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  margin-top: 2px;
-  box-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+  animation: dotPulse 2s ease-in-out infinite;
 }
 
-.vibe-day.has-movie {
-  cursor: pointer;
-  box-shadow: 0 0 8px currentColor;
+@keyframes dotPulse {
+
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.3);
+  }
 }
 
 .vibe-day.has-movie:hover {
-  transform: scale(1.15);
+  transform: scale(1.2);
   z-index: 10;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.4),
+    0 0 20px currentColor;
+}
+
+.vibe-day.has-movie:active {
+  transform: scale(1.1);
+}
+
+/* Movie details popup */
+.day-movie-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  max-width: 320px;
+  width: 90%;
+  z-index: 1000;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.day-movie-popup.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.day-movie-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.day-movie-popup-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.day-movie-header {
+  display: flex;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.day-movie-poster {
+  width: 80px;
+  height: 120px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.day-movie-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.day-movie-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.day-movie-date {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.day-movie-genre {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--accent);
+  color: var(--bg-primary);
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  width: fit-content;
+}
+
+.day-movie-ratings {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-md) 0;
+  border-top: 1px solid var(--bg-tertiary);
+  border-bottom: 1px solid var(--bg-tertiary);
+  margin: var(--space-sm) 0;
+}
+
+.day-movie-rating {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.day-movie-rating-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.day-movie-rating-value {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #ffc107;
+}
+
+.day-movie-close {
+  width: 100%;
+  padding: var(--space-sm);
+  background: var(--bg-tertiary);
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.day-movie-close:hover {
+  background: var(--bg-card-hover);
+}
+
+/* ========================================
+   Challenge Cards
+   ======================================== */
+.challenges-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.challenge-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.challenge-card:hover {
+  background: var(--bg-card-hover);
+}
+
+.challenge-icon {
+  font-size: 1.8rem;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+}
+
+.challenge-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.challenge-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.challenge-progress-mini {
+  height: 4px;
+  background: var(--bg-card);
+  border-radius: 2px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+.challenge-progress-bar-mini {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #00d9ff);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.challenge-meta {
+  display: flex;
+  gap: var(--space-sm);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.challenge-meta span {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.challenge-actions {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.challenge-edit,
+.challenge-delete {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.challenge-edit:hover {
+  background: var(--accent);
+}
+
+.challenge-delete:hover {
+  background: #ff4757;
+}
+
+/* ========================================
+   Challenge Detail Popup
+   ======================================== */
+.challenge-detail-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.challenge-detail-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.challenge-detail-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  max-width: 400px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.challenge-detail-popup.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.challenge-detail-popup h3 {
+  margin-bottom: var(--space-md);
+  font-size: 1.3rem;
+}
+
+.challenge-detail-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.challenge-detail-progress-bar {
+  flex: 1;
+  height: 12px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.challenge-detail-progress {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #00d9ff);
+  border-radius: 6px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+.challenge-detail-progress-wrap span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 80px;
+  text-align: right;
+}
+
+.challenge-detail-movies {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.challenge-movie-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+}
+
+.challenge-movie-item.watched {
+  background: rgba(76, 175, 80, 0.2);
+}
+
+.challenge-movie-item.watched .challenge-movie-id {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.challenge-movie-id {
+  font-family: monospace;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.challenge-movie-toggle {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.challenge-movie-toggle:hover {
+  transform: scale(1.2);
 }

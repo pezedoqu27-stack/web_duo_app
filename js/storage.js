@@ -73,16 +73,26 @@ const Storage = {
         }
     },
 
+
     /**
-     * Get API key
+     * Получить API ключ TMDB
      * @returns {string|null}
      */
     getApiKey() {
-        return this.get(this.KEYS.API_KEY);
+        // Сначала проверяем ключ от пользователя
+        const userKey = this.get(this.KEYS.API_KEY);
+        if (userKey && userKey.trim().length > 0) {
+            return userKey;
+        }
+        // Используем ключ из конфигурации
+        if (typeof CONFIG !== 'undefined' && CONFIG.TMDB_BEARER_TOKEN) {
+            return CONFIG.TMDB_BEARER_TOKEN;
+        }
+        return null;
     },
 
     /**
-     * Set API key
+     * Установить API ключ TMDB
      * @param {string} key
      */
     setApiKey(key) {
@@ -90,15 +100,24 @@ const Storage = {
     },
 
     /**
-     * Get Perplexity API key
+     * Получить API ключ Perplexity
      * @returns {string|null}
      */
     getPerplexityKey() {
-        return this.get(this.KEYS.PERPLEXITY_KEY);
+        // Сначала проверяем ключ от пользователя
+        const userKey = this.get(this.KEYS.PERPLEXITY_KEY);
+        if (userKey && userKey.trim().length > 0) {
+            return userKey;
+        }
+        // Используем ключ из конфигурации
+        if (typeof CONFIG !== 'undefined' && CONFIG.PERPLEXITY_API_KEY) {
+            return CONFIG.PERPLEXITY_API_KEY;
+        }
+        return null;
     },
 
     /**
-     * Set Perplexity API key
+     * Установить API ключ Perplexity
      * @param {string} key
      */
     setPerplexityKey(key) {

@@ -229,6 +229,34 @@
                     </div>
                 </div>
 
+                <!-- Day Movie Popup -->
+                <div class="day-movie-popup-overlay" id="dayMovieOverlay"></div>
+                <div class="day-movie-popup" id="dayMoviePopup">
+                    <div class="day-movie-header">
+                        <img class="day-movie-poster" id="dayMoviePoster" src="" alt="">
+                        <div class="day-movie-info">
+                            <div class="day-movie-title" id="dayMovieTitle"></div>
+                            <div class="day-movie-date" id="dayMovieDate"></div>
+                            <div class="day-movie-genre" id="dayMovieGenre"></div>
+                        </div>
+                    </div>
+                    <div class="day-movie-ratings">
+                        <div class="day-movie-rating">
+                            <span class="day-movie-rating-label">👨 Он</span>
+                            <span class="day-movie-rating-value" id="dayMovieRating1">—</span>
+                        </div>
+                        <div class="day-movie-rating">
+                            <span class="day-movie-rating-label">👩 Она</span>
+                            <span class="day-movie-rating-value" id="dayMovieRating2">—</span>
+                        </div>
+                        <div class="day-movie-rating">
+                            <span class="day-movie-rating-label">⏱️ Время</span>
+                            <span class="day-movie-rating-value" id="dayMovieRuntime">—</span>
+                        </div>
+                    </div>
+                    <button class="day-movie-close" id="dayMovieClose">Закрыть</button>
+                </div>
+
                 <div id="historyMovies" class="movies-list"></div>
                 <div class="empty-state" id="historyEmpty">
                     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
@@ -326,7 +354,7 @@
                     <div class="stats-section challenges-section">
                         <div class="challenges-header">
                             <h3>🎯 Челленджи</h3>
-                            <button class="btn-add-challenge" id="addChallengeBtn">+ Создать</button>
+                            <button class="btn-add-challenge" onclick="App.openChallengeEditor()">+ Создать</button>
                         </div>
                         <div class="challenges-grid" id="challengesGrid">
                             <!-- Filled by JS -->
@@ -560,7 +588,7 @@
 
     <!-- Challenge Edit Modal -->
     <div id="challengeModal" class="modal">
-        <div class="modal-overlay"></div>
+        <div class="modal-overlay" onclick="Components.toggleModal('challengeModal', false)"></div>
         <div class="modal-content challenge-modal">
             <h3 id="challengeModalTitle">🎯 Новый челлендж</h3>
 
@@ -578,15 +606,19 @@
                 <div class="form-group">
                     <label>Назначить на</label>
                     <div class="assignee-buttons">
-                        <button class="assignee-btn" data-assignee="male">👨 Он</button>
-                        <button class="assignee-btn active" data-assignee="both">💑 Вместе</button>
-                        <button class="assignee-btn" data-assignee="female">👩 Она</button>
+                        <button class="assignee-btn" data-assignee="male" onclick="App.selectAssignee(this)">👨
+                            Он</button>
+                        <button class="assignee-btn active" data-assignee="both" onclick="App.selectAssignee(this)">💑
+                            Вместе</button>
+                        <button class="assignee-btn" data-assignee="female" onclick="App.selectAssignee(this)">👩
+                            Она</button>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>TMDB ID фильмов (через запятую)</label>
-                    <textarea id="challengeMovies" placeholder="155, 27205, 49026, 157336" rows="3"></textarea>
+                    <textarea id="challengeMovies" placeholder="155, 27205, 49026, 157336" rows="3"
+                        oninput="App.updateTicketReward()"></textarea>
                     <small>Найдите ID на themoviedb.org</small>
                 </div>
 
@@ -597,10 +629,26 @@
             </div>
 
             <div class="challenge-modal-actions">
-                <button class="btn-secondary" id="cancelChallenge">Отмена</button>
-                <button class="btn-primary" id="saveChallenge">💾 Сохранить</button>
+                <button class="btn-secondary" onclick="Components.toggleModal('challengeModal', false)">Отмена</button>
+                <button class="btn-primary" onclick="App.saveChallenge()">💾 Сохранить</button>
             </div>
         </div>
+    </div>
+
+    <!-- Challenge Detail Popup -->
+    <div class="challenge-detail-overlay" id="challengeDetailOverlay" onclick="App.closeChallengeDetail()"></div>
+    <div class="challenge-detail-popup" id="challengeDetailPopup">
+        <h3 id="challengeDetailTitle">🎯 Челлендж</h3>
+        <div class="challenge-detail-progress-wrap">
+            <div class="challenge-detail-progress-bar">
+                <div class="challenge-detail-progress" id="challengeDetailProgress"></div>
+            </div>
+            <span id="challengeDetailProgressText">0/0 (0%)</span>
+        </div>
+        <div class="challenge-detail-movies" id="challengeDetailMovies">
+            <!-- Movies list -->
+        </div>
+        <button class="btn-secondary" onclick="App.closeChallengeDetail()">Закрыть</button>
     </div>
 
     <!-- Randomizer Modal -->
@@ -725,14 +773,7 @@
                 </svg>
             </button>
         </div>
-        <div class="ai-chat-settings" id="aiSettings">
-            <div class="ai-setting-row">
-                <label>Perplexity API</label>
-                <input type="password" id="perplexityKeyInput" placeholder="pplx-xxx...">
-                <button id="savePerplexityKey" class="btn-small">Сохранить</button>
-            </div>
-            <a href="https://www.perplexity.ai/settings/api" target="_blank" class="api-link">Получить API ключ →</a>
-        </div>
+        <!-- API ключ настроен в config.js -->
     </div>
 
     <!-- Advanced Filters Modal -->
@@ -793,6 +834,7 @@
         <!-- Toast Notification -->
         <div id="toast" class="toast"></div>
 
+        <script src="js/config.js"></script>
         <script src="js/storage.js"></script>
         <script src="js/api.js"></script>
         <script src="js/components.js"></script>
